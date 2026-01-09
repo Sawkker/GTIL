@@ -3,8 +3,11 @@ import { Scene } from 'phaser';
 
 // ... (inside class methods)
 
+
 import { Weapon } from './weapons/Weapon';
 import { Pistol, Rifle, Shotgun } from './weapons/Weapons';
+import { WeaponPickup } from './WeaponPickup';
+
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
     private speed: number = 300;
@@ -23,7 +26,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         this.setScale(0.15);
 
         // Adjust body size
-        this.body?.setCircle(120);
+        this.body?.setCircle(12);
 
         // TORSO (Child Sprite)
         this.torso = scene.add.sprite(x, y, 'player_handgun');
@@ -116,9 +119,32 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         EventBus.emit('ammo-change', ammoText);
     }
 
+
     getCurrentWeaponName(): string {
         return this.weapons[this.currentWeaponIndex].name;
     }
+
+    handlePickup(pickup: WeaponPickup) {
+        let nameMatch = '';
+        if (pickup.weaponType === 'handgun') nameMatch = 'Pistol';
+        else if (pickup.weaponType === 'rifle') nameMatch = 'Assault Rifle';
+        else if (pickup.weaponType === 'shotgun') nameMatch = 'Shotgun';
+
+        const weapon = this.weapons.find(w => w.name === nameMatch);
+        if (weapon) {
+            weapon.addAmmo(pickup.ammo);
+            console.log(`Picked up ${nameMatch} ammo: ${pickup.ammo}`);
+
+            // If it's the current weapon, update UI
+            if (this.getCurrentWeaponName() === nameMatch) {
+                const ammoText = weapon.maxAmmo === -1 ? 'Inf' : weapon.currentAmmo.toString();
+                EventBus.emit('ammo-change', ammoText);
+            }
+        }
+
+        pickup.destroy();
+    }
+
 
     // Cleanup
     destroy(fromScene?: boolean) {

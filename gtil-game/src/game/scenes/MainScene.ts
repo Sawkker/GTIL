@@ -5,9 +5,13 @@ import { Bullet } from '../objects/Bullet';
 import { Enemy } from '../objects/Enemy';
 import { PathfindingManager } from '../systems/PathfindingManager';
 import { ParticleManager } from '../systems/ParticleManager';
+import { MapGenerator, LevelData } from '../systems/MapGenerator';
+import { Door } from '../objects/Door';
+import { WeaponPickup } from '../objects/WeaponPickup';
 
 export class MainScene extends Scene {
     private keyQ!: Phaser.Input.Keyboard.Key;
+    private pickups!: Phaser.Physics.Arcade.Group;
 
     constructor() {
         super('MainScene');
@@ -21,32 +25,41 @@ export class MainScene extends Scene {
         this.load.image('player_shotgun', 'assets/player_shotgun.png');
         this.load.image('tile', 'assets/tile.png');
         this.load.image('enemy', 'assets/enemy.png');
+        // Load furniture as spritesheet (assuming 64x64 or similar grid)
+        // Adjust frameWidth/Height based on generated asset inspection or guess. 
+        // User image showed 2x grid, big items. Let's guess 64x64 for now.
+        this.load.spritesheet('furniture', 'assets/furniture.png', { frameWidth: 64, frameHeight: 64 });
+        this.load.image('floors', 'assets/floors.png');
+        // Load blood splats as spritesheet (assuming 32x32 frames or similar, let's guess 32x32 for now based on generation)
+        // If single image, load as image. Let's load as spritesheet to use frames if possible.
+        // Actually, generated image is likely a sheet. Let's assume 32x32 or 64x64.
+        // Let's safe load as spritesheet with small frames, or just image and crop in particles.
+        // For simplicity, let's load as spritesheet 32x32.
+        this.load.spritesheet('blood_splats', 'assets/blood_splats.png', { frameWidth: 32, frameHeight: 32 });
     }
 
-
-
     private player!: Player;
-    private bullets!: Phaser.Physics.Arcade.Group;
+    public bullets!: Phaser.Physics.Arcade.Group;
     private enemies!: Phaser.Physics.Arcade.Group;
     private pathfinding!: PathfindingManager;
     public particleManager!: ParticleManager;
-    private wallsLayer!: Phaser.Tilemaps.TilemapLayer; // Promoted to property
+    private wallsLayer!: Phaser.Tilemaps.TilemapLayer;
+    private doors!: Phaser.Physics.Arcade.Group;
+    private levelData!: LevelData;
     private currentRound: number = 0;
     private maxRounds: number = 3;
-    private wasd!: {
-        up: Phaser.Input.Keyboard.Key;
-        down: Phaser.Input.Keyboard.Key;
-        left: Phaser.Input.Keyboard.Key;
-        right: Phaser.Input.Keyboard.Key;
-    };
-
+    private keyE!: Phaser.Input.Keyboard.Key;
+    private wasd!: any;
     private score: number = 0;
     private health: number = 100;
+
+    // Blood Surface
+    private bloodSurface!: Phaser.GameObjects.RenderTexture;
 
     create() {
         console.log('MainScene: create started');
 
-        // Create Animations
+        // ... Anims ...
         if (!this.anims.exists('walk')) {
             this.anims.create({
                 key: 'walk',
@@ -60,40 +73,37 @@ export class MainScene extends Scene {
         this.health = 100;
         this.currentRound = 0;
 
-        // Weapon UI
-
-
-        // DEBUG: Enable Physics Debugging
-        // DEBUG: Enable Physics Debugging
-        // this.physics.world.createDebugGraphic();
-        // this.physics.world.drawDebug = true;
-
         // Initialize Pathfinding
         this.pathfinding = new PathfindingManager();
 
         // Initialize Particle Manager
         this.particleManager = new ParticleManager(this);
 
-        // Generate Bullet Texture
-
+        // ... Graphics Generation ...
         const graphics = this.make.graphics({ x: 0, y: 0 });
-        graphics.fillStyle(0xffff00); // Yellow (Tracer style)
-        graphics.fillRect(0, 0, 4, 4); // Smaller
+        graphics.fillStyle(0xffff00);
+        graphics.fillRect(0, 0, 4, 4);
         graphics.generateTexture('bullet_texture', 4, 4);
 
-        // Generate Neon Wall Texture
         const wallGraphics = this.make.graphics({ x: 0, y: 0 });
-        wallGraphics.fillStyle(0x1a1a1a); // Dark background
+        wallGraphics.fillStyle(0x1a1a1a);
         wallGraphics.fillRect(0, 0, 32, 32);
-        wallGraphics.lineStyle(2, 0x00ffff); // Cyan Neon Border
+        wallGraphics.lineStyle(2, 0x00ffff);
         wallGraphics.strokeRect(0, 0, 32, 32);
-        wallGraphics.fillStyle(0x00ffff, 0.2); // Faint inner glow
+        wallGraphics.fillStyle(0x00ffff, 0.2);
         wallGraphics.fillRect(4, 4, 24, 24);
         wallGraphics.generateTexture('wall_tile', 32, 32);
 
+        const doorGraphics = this.make.graphics({ x: 0, y: 0 });
+        doorGraphics.fillStyle(0x7f8c8d);
+        doorGraphics.fillRect(0, 0, 32, 32);
+        doorGraphics.lineStyle(2, 0xffaa00);
+        doorGraphics.strokeRect(0, 0, 32, 32);
+        doorGraphics.generateTexture('door_texture', 32, 32);
+
         // --- MAP GENERATION START ---
-        // Create the map
         const map = this.make.tilemap({ tileWidth: 32, tileHeight: 32, width: 32, height: 24 });
+        // ... (rest of map init) ...
         const tileset = map.addTilesetImage('tile', undefined, 32, 32);
         const wallTileset = map.addTilesetImage('wall_tile', undefined, 32, 32);
 
@@ -122,149 +132,264 @@ export class MainScene extends Scene {
             const layer = map.createBlankLayer('Walls', wallTileset);
             if (layer) {
                 this.wallsLayer = layer;
-                // Add some random walls
-                // Add some random walls
-                for (let i = 0; i < 50; i++) {
-                    const x = Phaser.Math.Between(0, map.width - 1);
-                    const y = Phaser.Math.Between(0, map.height - 1);
 
-                    // Don't spawn walls near the center (Player Spawn)
-                    const distFromCenter = Phaser.Math.Distance.Between(x, y, map.width / 2, map.height / 2);
-                    if (distFromCenter < 5) continue; // Safe zone of 5 tiles radius
+                // GENERATE LEVEL
+                this.levelData = MapGenerator.generateSimpleRooms(map.width, map.height);
 
-                    this.wallsLayer.putTileAt(0, x, y);
+                // Initialize Blood Surface (Before items, after potential background)
+                // Size of the map
+                this.bloodSurface = this.add.renderTexture(0, 0, map.widthInPixels, map.heightInPixels);
+                this.bloodSurface.setDepth(-0.5); // Above floors (depth -1), below walls/items (depth 0+)
+                this.particleManager.setBloodSurface(this.bloodSurface);
+
+                // 1. Draw Floors (Custom logic per room)
+                // We'll use TileSprites for rooms to have distinct textures
+                this.levelData.rooms.forEach(room => {
+                    // Create a TileSprite for the floor
+                    // We accept that 'floors' texture might need offset/crop, but for now just use it.
+                    // To do it properly we'd need separate textures.
+                    // For MVP, tint the basic tile or use the new texture as a patterned rect.
+
+                    const floor = this.add.tileSprite(
+                        (room.x * 32) + (room.w * 32) / 2,
+                        (room.y * 32) + (room.h * 32) / 2,
+                        room.w * 32,
+                        room.h * 32,
+                        'floors'
+                    );
+
+                    // Hacky texture selection:
+                    if (room.floorType === 0) {
+                        floor.setTint(0xffaaaa); // Red tint for "Rug"
+                    } else {
+                        floor.setTint(0xaaaaff); // Blue tint for "Tiles"
+                    }
+                    floor.setDepth(-1); // Below everything
+                });
+
+                // 2. Place Furniture
+                // Use a standard group but configure objects as static-like manual bodies
+                // This avoids StaticGroup 'isParent' issues in some Phaser versions/configs
+                const furnitureGroup = this.physics.add.group({
+                    immovable: true,
+                    allowGravity: false
+                });
+
+                if (this.levelData.furniture) {
+                    this.levelData.furniture.forEach(item => {
+                        const furniture = furnitureGroup.create(item.x, item.y, 'furniture');
+
+                        furniture.setScale(0.5);
+                        if (furniture.body) {
+                            furniture.body.moves = false; // Make it truly static
+                        }
+
+                        // Safety Check: Only set frame if texture is valid and has multiple frames
+                        if (this.textures.exists('furniture')) {
+                            const tex = this.textures.get('furniture');
+                            if (tex.frameTotal > 1) {
+                                const frames = tex.getFrameNames();
+                                if (frames.length > 0) {
+                                    furniture.setFrame(Phaser.Utils.Array.GetRandom(frames));
+                                } else {
+                                    const idx = Phaser.Math.Between(0, tex.frameTotal - 1);
+                                    furniture.setFrame(idx);
+                                }
+                            }
+                        }
+                    });
                 }
+
+                // Unified Colliders
+                // this.physics.add.collider(this.player, furnitureGroup);
+                // this.physics.add.collider(this.enemies, furnitureGroup);
+                // this.physics.add.collider(this.bullets, furnitureGroup, (b, f) => {
+                //     const bullet = b as Bullet;
+                //     if (bullet.active) {
+                //         this.particleManager.emitWallHit(bullet.x, bullet.y);
+                //         bullet.kill();
+                //     }
+                // });
+
+
+                // Place Walls
+                this.levelData.walls.forEach(w => {
+                    this.wallsLayer.putTileAt(0, w.x, w.y);
+                });
+
                 this.wallsLayer.setCollisionByExclusion([-1]);
-                this.wallsLayer.setCollisionByExclusion([-1]); // Duplicate?
 
                 // Update Pathfinding
                 this.pathfinding.updateGrid(this.wallsLayer);
+
+                // Place Doors
+                this.doors = this.physics.add.group({
+                    classType: Door,
+                    runChildUpdate: true
+                });
+
+                this.levelData.doors.forEach(d => {
+                    const wx = d.x * 32 + 16;
+                    const wy = d.y * 32 + 16;
+                    const door = new Door(this, wx, wy, 'door_texture');
+                    this.doors.add(door);
+                });
             }
 
             // Set world bounds to map size
             this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
             this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
 
-            // ... (Bullets init)
-
-            // ... (Bullets init removed from here)
-
-            // Initialize Player
-            this.player = new Player(this, map.widthInPixels / 2, map.heightInPixels / 2);
-
-            // ...
-
-            // ... (Enemies init removed from here)
-
-        }
-
-
-        // --- COLLISION SETUP (Reordered for Wall safety) ---
-        if (this.wallsLayer) {
-            this.physics.add.collider(this.player, this.wallsLayer);
-
-            // Bullets vs Walls (Defined BEFORE Enemies to prevent shoot-through)
-            this.physics.add.collider(this.bullets, this.wallsLayer, (bullet, tile) => {
-                const b = bullet as Bullet;
-                if (!b.active) return;
-                this.particleManager.emitWallHit(b.x, b.y);
-                b.kill();
+            // Initialize Bullet Group
+            this.bullets = this.physics.add.group({
+                classType: Bullet,
+                runChildUpdate: true
             });
 
-            // Enemies vs Walls
-            this.physics.add.collider(this.enemies, this.wallsLayer);
-        }
+            // Initialize Enemy Group
+            this.enemies = this.physics.add.group({
+                classType: Enemy,
+                runChildUpdate: true,
+                collideWorldBounds: true
+            });
 
-        // Bullets vs Enemies
-        this.physics.add.overlap(this.bullets, this.enemies, (bullet, enemy) => {
-            const e = enemy as Enemy;
-            const b = bullet as Bullet;
+            // Initialize Player
+            this.player = new Player(this, this.levelData.playerStart.x, this.levelData.playerStart.y);
 
-            if (!b.active || !e.active) return;
 
-            // Extra Safety: Raycast to check for walls
-            const ray = new Phaser.Geom.Line(b.x, b.y, e.x, e.y);
-            // Since we are inside overlap, they are close. 
-            // If there is a wall tile at bullet position or between, ignore.
-            if (this.wallsLayer.getTilesWithinShape(ray).some(t => t.collides)) {
-                this.particleManager.emitWallHit(b.x, b.y);
-                b.kill();
-                return;
-            }
+            // --- COLLISION SETUP (Reordered for Wall safety) ---
+            if (this.wallsLayer) {
+                this.physics.add.collider(this.player, this.wallsLayer);
 
-            // Blood effect (only if enemy was alive)
-            if (!e.isDead) {
-                this.particleManager.emitBlood(e.x, e.y);
-                this.score += 10;
-                EventBus.emit('score-change', this.score);
+                // Bullets vs Walls (Defined BEFORE Enemies to prevent shoot-through)
+                this.physics.add.collider(this.bullets, this.wallsLayer, (bullet, tile) => {
+                    const b = bullet as Bullet;
+                    if (!b.active) return;
+                    this.particleManager.emitWallHit(b.x, b.y);
+                    b.kill();
+                });
 
-                // Use simple hit for now
-                e.hit(b.damage);
+                // Enemies vs Walls
+                this.physics.add.collider(this.enemies, this.wallsLayer);
 
-                // Check Round Completion
-                if (this.enemies.countActive(true) === 0) {
-                    this.time.delayedCall(1000, () => this.startNextRound());
+                // Collisions with Doors
+                this.physics.add.collider(this.player, this.doors);
+                this.physics.add.collider(this.enemies, this.doors);
+                this.physics.add.collider(this.bullets, this.doors, (bullet, door) => {
+                    const b = bullet as Bullet;
+                    const d = door as Door;
+                    // Destroy bullet if door is closed (collidable)
+                    // Note: Arcade physics collision happens if body is enabled.
+                    // Our toggle logic disables body if open.
+                    // So if we are here, it's closed.
+                    if (!d.isOpen) {
+                        this.particleManager.emitWallHit(b.x, b.y);
+                        b.kill();
+                    }
+                });
+                // Bullets vs Enemies
+                this.physics.add.overlap(this.bullets, this.enemies, (bullet, enemy) => {
+                    const e = enemy as Enemy;
+                    const b = bullet as Bullet;
+
+                    if (!b.active || !e.active) return;
+
+                    // Should add wall check here in future if needed
+
+                    e.hit(b.damage);
+                    b.kill();
+                });
+
+                // Bullets vs Player
+                this.physics.add.overlap(this.bullets, this.player, (bullet, player) => {
+                    // ... (Player hit logic)
+                    const b = bullet as Bullet;
+                    if (b.ownerType === 'enemy' && b.active) {
+                        b.kill();
+                        // this.player.hit() collision logic 
+                        // For now just console log
+                        console.log('Player Hit!');
+                    }
+                });
+
+
+                // Setup Input
+                this.keyQ = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.Q);
+                this.keyE = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+                this.wasd = this.input.keyboard!.addKeys({
+                    up: Phaser.Input.Keyboard.KeyCodes.W,
+                    down: Phaser.Input.Keyboard.KeyCodes.S,
+                    left: Phaser.Input.Keyboard.KeyCodes.A,
+                    right: Phaser.Input.Keyboard.KeyCodes.D
+                }) as any;
+
+                // Initialize Pickups Group (Deferred from enemy creation, but good to have group ready if we manage it here)
+                // Actually, Enemy creates the Sprite. We just need to ensure physics works.
+                // Better pattern: Enemies add to a scene group, or we handle it dynamically?
+                // For now, let's overlap with dynamic objects check or a dedicated group.
+                // Simplest: Enemy creates it, scene detects it via a global Group if added.
+                // BUT: In Phaser, if an object adds itself to scene.physics.add.existing, it has a body.
+                // We can't easily collide "all pickups" unless they are in a Group.
+                // Ideally, MainScene should manage the group.
+
+                if (!this.pickups) {
+                    this.pickups = this.physics.add.group({
+                        classType: WeaponPickup,
+                        runChildUpdate: true
+                    });
+                    // Hack to expose to enemies (bad practice but quick fix)
+                    (this as any).pickupGroup = this.pickups;
                 }
+
+                this.physics.add.overlap(this.player, this.pickups, (player, pickup) => {
+                    const p = player as Player;
+                    const w = pickup as WeaponPickup;
+
+                    // Interaction logic: Auto-pickup or interact?
+                    // User asked: "si es arma que ya tengo que sume las balas"
+
+                    // Let's implement Auto-Pickup for now logic simplicity or check invalid input
+                    if (Phaser.Input.Keyboard.JustDown(this.keyE)) {
+                        p.handlePickup(w);
+                    }
+                });
+
+
+
+
+
+                this.add.text(10, 10, 'WASD to Move, Click to Shoot', {
+                    fontSize: '16px',
+                    color: '#ffffff'
+                }).setScrollFactor(0);
+
+                // Initialize Room tracking (could be optimized)
+                this.time.addEvent({
+                    delay: 500,
+                    loop: true,
+                    callback: () => {
+                        this.updateRoomOccupancy();
+                    }
+                });
+
+                EventBus.emit('current-scene-ready', this);
+                // Initial Emit
+                this.time.delayedCall(100, () => {
+                    if (this.scene.key === 'MainScene') {
+                        EventBus.emit('score-change', this.score);
+                        EventBus.emit('health-change', this.health);
+
+                        // FORCE INITIAL WEAPON UI UPDATE
+                        const weaponName = this.player.getCurrentWeaponName();
+                        // Default pistol is infinite
+                        this.events.emit('ammo-change', 'Inf');
+                    }
+                });
+
+                // Start the game loop
+                this.startNextRound();
             }
-            b.kill();
-        });
-
-        // Start First Round
-        this.startNextRound();
-
-
-        this.physics.add.collider(this.player, this.enemies, (player, enemy) => {
-            // Simple Collision Logic
-            this.health -= 5;
-            EventBus.emit('health-change', this.health);
-            this.cameras.main.shake(100, 0.01);
-            this.particleManager.emitBlood(this.player.x, this.player.y);
-
-            if (this.health <= 0) {
-                this.physics.pause(); // Stop physics to prevent crashes during transition
-                this.physics.world.colliders.destroy(); // Clean up all colliders
-                this.scene.start('GameOverScene', { score: this.score });
-            }
-        }, (player, enemy) => {
-            const e = enemy as Enemy;
-            // Keep simple check here, or move logic to callback.
-            // User requested removing processCallback generally, but for Player vs Enemy check
-            // "this.physics.add.collider(bullets, enemies..." context. 
-            // Let's standardise: move logic to main callback as requested for consistency
-            return true;
-        });
-
-        // Setup Input
-        this.keyQ = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.Q);
-        this.wasd = this.input.keyboard!.addKeys({
-            up: Phaser.Input.Keyboard.KeyCodes.W,
-            down: Phaser.Input.Keyboard.KeyCodes.S,
-            left: Phaser.Input.Keyboard.KeyCodes.A,
-            right: Phaser.Input.Keyboard.KeyCodes.D
-        }) as any;
-
-
-
-
-
-        this.add.text(10, 10, 'WASD to Move, Click to Shoot', {
-            fontSize: '16px',
-            color: '#ffffff'
-        }).setScrollFactor(0);
-
-        EventBus.emit('current-scene-ready', this);
-        // Initial Emit
-        this.time.delayedCall(100, () => {
-            if (this.scene.key === 'MainScene') {
-                EventBus.emit('score-change', this.score);
-                EventBus.emit('health-change', this.health);
-
-                // FORCE INITIAL WEAPON UI UPDATE
-                const weaponName = this.player.getCurrentWeaponName();
-                // Default pistol is infinite
-                this.events.emit('ammo-change', 'Inf');
-            }
-        });
+        }
     }
 
     update(time: number, delta: number) {
@@ -283,6 +408,27 @@ export class MainScene extends Scene {
         // Shooting
         if (this.input.activePointer.isDown) {
             this.player.shoot(this.bullets, time);
+        }
+
+        // Interaction
+        if (Phaser.Input.Keyboard.JustDown(this.keyE)) {
+            // Find nearest door
+            let nearest: Door | null = null;
+            let minDst = 64; // Interaction range
+
+            this.doors.children.iterate((entry: Phaser.GameObjects.GameObject) => {
+                const d = entry as Door;
+                const dst = Phaser.Math.Distance.Between(this.player.x, this.player.y, d.x, d.y);
+                if (dst < minDst) {
+                    minDst = dst;
+                    nearest = d;
+                }
+                return true;
+            });
+
+            if (nearest) {
+                (nearest as Door).toggle();
+            }
         }
 
 
@@ -336,20 +482,58 @@ export class MainScene extends Scene {
         if (!this.wallsLayer) return;
 
         for (let i = 0; i < count; i++) {
-            // Random position away from player
-            let x, y;
-            let attempts = 0;
-            do {
-                x = Phaser.Math.Between(100, 900);
-                y = Phaser.Math.Between(100, 600);
-                attempts++;
-            } while (
-                (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) < 200 ||
-                    this.wallsLayer.getTileAtWorldXY(x, y)) && attempts < 50
-            );
+            // Pick a random room
+            const room = Phaser.Utils.Array.GetRandom(this.levelData.rooms);
+            if (!room) continue;
+
+            // Pick a random spot in the room (padded)
+            let x = Phaser.Math.Between((room.x + 1) * 32, (room.x + room.w - 1) * 32);
+            let y = Phaser.Math.Between((room.y + 1) * 32, (room.y + room.h - 1) * 32);
+
+            // Simple distance check from player to avoid instant spawn kill
+            if (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) < 150) {
+                // Try one more time
+                x = Phaser.Math.Between((room.x + 1) * 32, (room.x + room.w - 1) * 32);
+                y = Phaser.Math.Between((room.y + 1) * 32, (room.y + room.h - 1) * 32);
+            }
 
             const enemy = new Enemy(this, x, y, this.player, this.pathfinding, this.wallsLayer);
             this.enemies.add(enemy);
         }
+    }
+    updateRoomOccupancy() {
+        if (!this.levelData || !this.player) return;
+
+        // Helper to find room for x,y
+        const findRoomOptions = (x: number, y: number) => {
+            // Convert to tile coords
+            const tx = Math.floor(x / 32);
+            const ty = Math.floor(y / 32);
+
+            // Check rooms
+            for (let i = 0; i < this.levelData.rooms.length; i++) {
+                const r = this.levelData.rooms[i];
+                if (tx >= r.x && tx < r.x + r.w && ty >= r.y && ty < r.y + r.h) {
+                    return i;
+                }
+            }
+            return -1;
+        };
+
+        const playerRoom = findRoomOptions(this.player.x, this.player.y);
+
+        this.enemies.children.iterate((entry: Phaser.GameObjects.GameObject) => {
+            const enemy = entry as Enemy;
+            if (!enemy.active || enemy.isDead) return true;
+
+            const enemyRoom = findRoomOptions(enemy.x, enemy.y);
+            enemy.roomId = enemyRoom;
+
+            // AI REACTION: If in same room as player, ALERT/CHASE
+            if (playerRoom !== -1 && enemyRoom === playerRoom) {
+                enemy.alertToPlayerInRoom();
+            }
+            return true;
+        });
     }
 }

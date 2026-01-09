@@ -1,36 +1,64 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# GTIL Phaser Shooter
 
-## Getting Started
+Are you ready to survive the neon chaos? **GTIL Phaser Shooter** is a fast-paced, top-down shooter where strategy meets reflex. Battle waves of enemies, switch between a diverse arsenal of weapons, and navigate a neon-lit arena to achieve victory.
 
-First, run the development server:
+![Game Banner](public/assets/player_rifle.png)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 🎮 Game Overview
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+You are a lone operative dropped into a hostile, procedurally generated arena. Your mission: survive 3 intense rounds of enemy assaults. 
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+**Key Features:**
+- **Dynamic Combat:** Experience responsive twin-stick shooter mechanics.
+- **Weapon Arsenal:** Switch seamlessly between a **Pistol** (Infinite Ammo), **Assault Rifle** (Rapid Fire), and **Shotgun** (Spread Damage).
+- **Smart Enemies:** Face off against enemies that use pathfinding to hunt you down and hide behind cover.
+- **Visuals:** Enjoy a retro-neon aesthetic with dynamic lighting, blood particles, and bullet trails.
+- **Progression:** Survive rounds to earn score bonuses and health restoration.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🕹️ Controls
 
-## Learn More
+Master the controls to dominate the arena:
 
-To learn more about Next.js, take a look at the following resources:
+| Action | Control |
+| :--- | :--- |
+| **Move** | `W`, `A`, `S`, `D` Keys |
+| **Aim** | Mouse Cursor |
+| **Shoot** | Left Mouse Button |
+| **Switch Weapon** | `Q` Key |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+> **Tip:** Keep moving! Standing still makes you an easy target for the enemy AI.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🚀 Installation & Setup
 
-## Deploy on Vercel
+Follow these steps to get the game running locally:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/Sawkker/GTIL.git
+    cd GTIL/gtil-game
+    ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+2.  **Install dependencies:**
+    ```bash
+    npm install
+    # or
+    yarn install
+    ```
+
+3.  **Run the development server:**
+    ```bash
+    npm run dev
+    ```
+
+4.  **Play:**
+    Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+## 🛠️ Built With
+
+- **[Next.js](https://nextjs.org/)** - For the React framework structure.
+- **[Phaser 3](https://phaser.io/)** - The powerful game engine driving the mechanics.
+- **[TypeScript](https://www.typescriptlang.org/)** - For type-safe, robust code.
+
+## 📜 License
+
+This project is open-source. Feel free to fork and contribute!

@@ -20,6 +20,12 @@ export abstract class Weapon {
         this.currentAmmo = maxAmmo;
     }
 
+    addAmmo(amount: number) {
+        if (this.maxAmmo !== -1) {
+            this.currentAmmo += amount;
+        }
+    }
+
     canFire(time: number): boolean {
         // Check fire rate AND ammo
         // If maxAmmo is -1, it's infinite, so only check fire rate

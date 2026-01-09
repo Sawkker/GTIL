@@ -6,12 +6,14 @@ export class Bullet extends Phaser.Physics.Arcade.Image {
     private lifespan: number = 5000; // ms
     public isDead: boolean = false;
     public damage: number = 1;
+    public ownerType: 'player' | 'enemy' = 'player';
     public trail?: Phaser.GameObjects.Particles.ParticleEmitter;
 
     // ... (constructor) ...
 
-    fire(x: number, y: number, rotation: number, damage: number = 1) {
+    fire(x: number, y: number, rotation: number, damage: number = 1, owner: 'player' | 'enemy' = 'player') {
         this.isDead = false;
+        this.ownerType = owner;
         this.setActive(true);
         this.setVisible(true);
         // ...
@@ -42,6 +44,14 @@ export class Bullet extends Phaser.Physics.Arcade.Image {
 
             this.scene.physics.velocityFromRotation(rotation, this.speed, this.body.velocity);
         }
+
+        // Visual distinction
+        if (this.ownerType === 'enemy') {
+            this.setTint(0xffaa00); // Orange/Red for enemy
+        } else {
+            this.setTint(0xffff00); // Yellow for player
+        }
+
         this.lifespan = 5000; // Increased range
     }
 
@@ -78,5 +88,13 @@ export class Bullet extends Phaser.Physics.Arcade.Image {
             this.body.reset(0, 0); // Clear residual forces / velocity
             this.disableBody(true, true);
         }
+    }
+
+    destroy(fromScene?: boolean) {
+        if (this.trail) {
+            this.trail.destroy();
+            this.trail = undefined;
+        }
+        super.destroy(fromScene);
     }
 }
