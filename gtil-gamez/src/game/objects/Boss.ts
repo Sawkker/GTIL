@@ -20,8 +20,19 @@ export class Boss extends Enemy {
             // Force enable
             this.body.enable = true;
             // Set Size
-            this.body.setSize(80, 80);
-            this.body.setOffset(24, 24); // Center it in 128x128 frame
+            // Set Size based on texture
+            // Assume the spider is large. Let's make the hitbox huge too, but centered.
+            const bodyW = this.width * 0.6;
+            const bodyH = this.height * 0.6;
+
+            this.body.setSize(bodyW, bodyH);
+            this.body.setOffset((this.width - bodyW) / 2, (this.height - bodyH) / 2);
+
+            console.log('BOSS BODY DEBUG:', {
+                texW: this.width, texH: this.height,
+                bodyW, bodyH,
+                offsetX: (this.width - bodyW) / 2
+            });
 
             // Console Debug
             console.log('BOSS SPAWNED: Body Active, Health:', this.health, 'Pos:', x, y);
