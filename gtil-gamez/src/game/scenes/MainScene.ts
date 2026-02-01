@@ -13,16 +13,32 @@ export class MainScene extends Scene {
     private keyQ!: Phaser.Input.Keyboard.Key;
     private pickups!: Phaser.Physics.Arcade.Group;
 
+    private mapType: string = 'standard';
+
     constructor() {
         super('MainScene');
+    }
+
+    init(data: { mapType?: string, enemiesKilled?: number, health?: number, score?: number }) {
+        this.mapType = data?.mapType || 'standard';
+        this.totalEnemiesKilled = data?.enemiesKilled || 0;
+        this.health = data?.health ?? 100;
+        this.score = data?.score ?? 0;
+
+        console.log('MainScene initialized with:', {
+            mapType: this.mapType,
+            enemiesKilled: this.totalEnemiesKilled,
+            health: this.health,
+            score: this.score
+        });
     }
 
     preload() {
         this.load.image('player', 'assets/player.png'); // Keep legacy for fallback
         this.load.spritesheet('player_feet', 'assets/player_feet.png', { frameWidth: 64, frameHeight: 64 }); // Assuming 64x64 frames
         this.load.image('player_handgun', 'assets/player_handgun.png');
-        this.load.image('player_rifle', 'assets/player_rifle.png');
-        this.load.image('player_shotgun', 'assets/player_shotgun.png');
+        this.load.image('player_rifle', 'assets/player_handgun.png');
+        this.load.image('player_shotgun', 'assets/player_handgun.png');
         this.load.image('tile', 'assets/tile.png');
         this.load.image('enemy', 'assets/enemy.png');
         // Load furniture as spritesheet (assuming 64x64 or similar grid)
@@ -52,12 +68,26 @@ export class MainScene extends Scene {
     private wasd!: any;
     private score: number = 0;
     private health: number = 100;
+    private lastDamageTime: number = 0;
+    private totalEnemiesKilled: number = 0;
 
     // Blood Surface
     private bloodSurface!: Phaser.GameObjects.RenderTexture;
 
     create() {
+        // Force Fade In to ensure screen isn't black from previous fade out
+        this.cameras.main.fadeIn(500, 0, 0, 0);
+
+        // Create placeholder ammo texture
+        const ammoGraphics = this.make.graphics({ x: 0, y: 0 });
+        ammoGraphics.fillStyle(0x00ff00);
+        ammoGraphics.fillRect(0, 0, 32, 32);
+        ammoGraphics.lineStyle(2, 0x000000);
+        ammoGraphics.strokeRect(0, 0, 32, 32);
+        ammoGraphics.generateTexture('ammo_box', 32, 32);
         console.log('MainScene: create started');
+
+        EventBus.emit('update-ui-state', 'PLAYING');
 
         // ... Anims ...
         if (!this.anims.exists('walk')) {
@@ -69,8 +99,7 @@ export class MainScene extends Scene {
             });
         }
 
-        this.score = 0;
-        this.health = 100;
+        // Initial values handled in init() or defaults
         this.currentRound = 0;
 
         // Initialize Pathfinding
@@ -80,6 +109,29 @@ export class MainScene extends Scene {
         this.particleManager = new ParticleManager(this);
 
         // ... Graphics Generation ...
+        // Generate Ammo Textures (High Visibility Shapes)
+        const pistolAmmo = this.make.graphics({ x: 0, y: 0 });
+        pistolAmmo.fillStyle(0xffff00); // Yellow
+        pistolAmmo.fillCircle(10, 10, 10);
+        pistolAmmo.lineStyle(2, 0x000000);
+        pistolAmmo.strokeCircle(10, 10, 10);
+        pistolAmmo.generateTexture('ammo_pistol', 20, 20);
+
+        const rifleAmmo = this.make.graphics({ x: 0, y: 0 });
+        rifleAmmo.fillStyle(0x00ff00); // Green
+        rifleAmmo.fillRect(0, 0, 20, 20);
+        rifleAmmo.lineStyle(2, 0x000000);
+        rifleAmmo.strokeRect(0, 0, 20, 20);
+        rifleAmmo.generateTexture('ammo_rifle', 20, 20);
+
+        const shotgunAmmo = this.make.graphics({ x: 0, y: 0 });
+        shotgunAmmo.fillStyle(0xff0000); // Red
+        shotgunAmmo.fillTriangle(10, 0, 20, 20, 0, 20);
+        shotgunAmmo.lineStyle(2, 0x000000);
+        shotgunAmmo.strokeTriangle(10, 0, 20, 20, 0, 20);
+        shotgunAmmo.generateTexture('ammo_shotgun', 20, 20);
+
+        // ... (rest of map init) ...
         const graphics = this.make.graphics({ x: 0, y: 0 });
         graphics.fillStyle(0xffff00);
         graphics.fillRect(0, 0, 4, 4);
@@ -107,21 +159,6 @@ export class MainScene extends Scene {
         const tileset = map.addTilesetImage('tile', undefined, 32, 32);
         const wallTileset = map.addTilesetImage('wall_tile', undefined, 32, 32);
 
-        // let wallsLayer: Phaser.Tilemaps.TilemapLayer | null = null; // Removed local var
-
-        // --- INIT GROUPS UNCONDITIONALLY ---
-        // Create Bullets Group
-        this.bullets = this.physics.add.group({
-            classType: Bullet,
-            maxSize: 30,
-            runChildUpdate: true,
-        });
-
-        // Create Enemies Group
-        this.enemies = this.physics.add.group({
-            classType: Enemy,
-            runChildUpdate: true,
-        });
 
         if (tileset && wallTileset) {
             const groundLayer = map.createBlankLayer('Ground', tileset);
@@ -134,7 +171,7 @@ export class MainScene extends Scene {
                 this.wallsLayer = layer;
 
                 // GENERATE LEVEL
-                this.levelData = MapGenerator.generateSimpleRooms(map.width, map.height);
+                this.levelData = MapGenerator.generateLevel(map.width, map.height, this.mapType);
 
                 // Initialize Blood Surface (Before items, after potential background)
                 // Size of the map
@@ -161,6 +198,8 @@ export class MainScene extends Scene {
                     // Hacky texture selection:
                     if (room.floorType === 0) {
                         floor.setTint(0xffaaaa); // Red tint for "Rug"
+                    } else if (room.floorType === 2) {
+                        floor.setTint(0xcccccc); // Gray tint for "Terrace/Concrete"
                     } else {
                         floor.setTint(0xaaaaff); // Blue tint for "Tiles"
                     }
@@ -199,18 +238,6 @@ export class MainScene extends Scene {
                         }
                     });
                 }
-
-                // Unified Colliders
-                // this.physics.add.collider(this.player, furnitureGroup);
-                // this.physics.add.collider(this.enemies, furnitureGroup);
-                // this.physics.add.collider(this.bullets, furnitureGroup, (b, f) => {
-                //     const bullet = b as Bullet;
-                //     if (bullet.active) {
-                //         this.particleManager.emitWallHit(bullet.x, bullet.y);
-                //         bullet.kill();
-                //     }
-                // });
-
 
                 // Place Walls
                 this.levelData.walls.forEach(w => {
@@ -272,6 +299,11 @@ export class MainScene extends Scene {
                 // Enemies vs Walls
                 this.physics.add.collider(this.enemies, this.wallsLayer);
 
+                // Enemies vs Player (Physical push)
+                this.physics.add.collider(this.player, this.enemies, (obj1, obj2) => {
+                    this.handlePlayerEnemyCollision(obj1 as Player, obj2 as Enemy);
+                });
+
                 // Collisions with Doors
                 this.physics.add.collider(this.player, this.doors);
                 this.physics.add.collider(this.enemies, this.doors);
@@ -294,21 +326,35 @@ export class MainScene extends Scene {
 
                     if (!b.active || !e.active) return;
 
-                    // Should add wall check here in future if needed
+                    // Prevent friendly fire (Enemies don't hit enemies)
+                    if (b.ownerType === 'enemy') {
+                        return;
+                    }
 
+                    console.log(`Enemy Hit by Bullet! Owner: ${b.ownerType}, Damage: ${b.damage}`);
                     e.hit(b.damage);
                     b.kill();
                 });
 
                 // Bullets vs Player
                 this.physics.add.overlap(this.bullets, this.player, (bullet, player) => {
-                    // ... (Player hit logic)
                     const b = bullet as Bullet;
+                    // Strict owner check
                     if (b.ownerType === 'enemy' && b.active) {
+                        console.log('DEBUG: Player hit by enemy bullet!');
                         b.kill();
-                        // this.player.hit() collision logic 
-                        // For now just console log
-                        console.log('Player Hit!');
+
+                        // Player Hit Logic
+                        this.health -= 10;
+                        EventBus.emit('health-change', this.health);
+                        this.cameras.main.shake(100, 0.01);
+
+                        console.log('Player Hit! Health:', this.health);
+
+                        if (this.health <= 0) {
+                            console.log('GAME OVER');
+                            this.scene.start('GameOverScene');
+                        }
                     }
                 });
 
@@ -349,9 +395,8 @@ export class MainScene extends Scene {
                     // User asked: "si es arma que ya tengo que sume las balas"
 
                     // Let's implement Auto-Pickup for now logic simplicity or check invalid input
-                    if (Phaser.Input.Keyboard.JustDown(this.keyE)) {
-                        p.handlePickup(w);
-                    }
+                    // Auto-pickup when walking over
+                    p.handlePickup(w);
                 });
 
 
@@ -386,6 +431,41 @@ export class MainScene extends Scene {
                     }
                 });
 
+                // Listen for enemy death to respawn
+                this.events.on('enemy-died', () => {
+                    this.totalEnemiesKilled++;
+
+                    // Check logic: Change map every 23 kills
+                    if (this.totalEnemiesKilled > 0 && this.totalEnemiesKilled % 23 === 0) {
+                        console.log('23 Kills Reached! Changing Design...');
+
+                        let nextMap = 'standard';
+                        switch (this.mapType) {
+                            case 'standard': nextMap = 'dungeon'; break;
+                            case 'dungeon': nextMap = 'terrace'; break;
+                            case 'terrace': nextMap = 'standard'; break;
+                            default: nextMap = 'standard';
+                        }
+
+                        // Fade out for transition
+                        this.cameras.main.fade(500, 0, 0, 0, false, (camera: any, progress: number) => {
+                            if (progress === 1) {
+                                this.scene.restart({
+                                    mapType: nextMap,
+                                    enemiesKilled: this.totalEnemiesKilled,
+                                    health: this.health,
+                                    score: this.score
+                                });
+                            }
+                        });
+                    } else {
+                        // Regular respawn logic
+                        this.time.delayedCall(5000, () => {
+                            this.spawnEnemies(1);
+                        });
+                    }
+                });
+
                 // Start the game loop
                 this.startNextRound();
             }
@@ -397,7 +477,7 @@ export class MainScene extends Scene {
 
         // Note: Bullets and Enemies updated automatically via runChildUpdate: true
 
-        this.player.update(undefined, this.wasd);
+        this.player.update(this.input.keyboard?.createCursorKeys(), this.wasd);
         this.player.setRotationToPointer(this.input.activePointer);
 
         // Weapon Switching
@@ -501,6 +581,39 @@ export class MainScene extends Scene {
             this.enemies.add(enemy);
         }
     }
+    handlePlayerEnemyCollision(player: Player, enemy: Enemy) {
+        if (enemy.isDead) return;
+
+        const now = this.time.now;
+        if (now - this.lastDamageTime < 1000) {
+            return; // Invulnerable
+        }
+
+        this.lastDamageTime = now;
+        this.health -= 10; // Fixed damage for now
+        EventBus.emit('health-change', this.health);
+
+        console.log('Player Damaged by Enemy! Health:', this.health);
+
+        // Visual Feedback
+        this.cameras.main.shake(200, 0.01);
+        player.setTint(0xff0000);
+        this.time.delayedCall(200, () => {
+            player.clearTint();
+        });
+
+        // Knockback (Simple)
+        const angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, player.x, player.y);
+        const knockbackForce = 300;
+        player.body!.velocity.x = Math.cos(angle) * knockbackForce;
+        player.body!.velocity.y = Math.sin(angle) * knockbackForce;
+
+        if (this.health <= 0) {
+            console.log('GAME OVER');
+            this.scene.start('GameOverScene');
+        }
+    }
+
     updateRoomOccupancy() {
         if (!this.levelData || !this.player) return;
 

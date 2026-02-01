@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { EventBus } from '../game/EventBus';
 
-type GameState = 'MENU' | 'PLAYING' | 'GAMEOVER';
+type GameState = 'MENU' | 'PLAYING' | 'GAMEOVER' | 'CUSTOM_MENU';
 
 const GameUI = () => {
     const [gameState, setGameState] = useState<GameState>('MENU');
@@ -51,6 +51,8 @@ const GameUI = () => {
         setWeapon('Pistol');
         setAmmo('Inf');
     };
+
+    if (gameState === 'CUSTOM_MENU') return null;
 
     if (gameState === 'MENU') {
         return (

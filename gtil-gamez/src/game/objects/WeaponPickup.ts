@@ -5,7 +5,12 @@ export class WeaponPickup extends Phaser.Physics.Arcade.Sprite {
     public ammo: number;
 
     constructor(scene: Scene, x: number, y: number, weaponType: string, ammo: number) {
-        super(scene, x, y, `player_${weaponType}`); // specific texture or generic pickup
+        let textureKey = 'ammo_box'; // Fallback
+        if (weaponType === 'handgun') textureKey = 'ammo_pistol';
+        else if (weaponType === 'rifle') textureKey = 'ammo_rifle';
+        else if (weaponType === 'shotgun') textureKey = 'ammo_shotgun';
+
+        super(scene, x, y, textureKey);
         // If specific texture doesn't exist as a pickup, maybe use a generic 'crate' or the weapon texture scaled down
 
         this.weaponType = weaponType;
@@ -14,13 +19,15 @@ export class WeaponPickup extends Phaser.Physics.Arcade.Sprite {
         scene.add.existing(this);
         scene.physics.add.existing(this);
 
-        this.setScale(0.5); // Smaller than player holding it
+        this.setScale(1); // Reset scale since we are generating small textures (20x20)
 
-        // Bobbing animation or visual cue
+        // Add a glow effect (tween alpha)
+        this.alpha = 0.8;
         this.scene.tweens.add({
             targets: this,
-            y: y - 5,
-            duration: 1000,
+            alpha: 1,
+            scale: 1.2,
+            duration: 800,
             yoyo: true,
             repeat: -1
         });

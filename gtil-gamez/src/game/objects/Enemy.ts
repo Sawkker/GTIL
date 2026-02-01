@@ -151,6 +151,11 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
                 this.scene.physics.moveToObject(this, this.target, this.speed);
                 const angle = Phaser.Math.Angle.Between(this.x, this.y, this.target.x, this.target.y);
                 this.setRotation(angle);
+
+                // Shoot if within range
+                if (Phaser.Math.Distance.Between(this.x, this.y, this.target.x, this.target.y) < 600) {
+                    this.shoot(angle);
+                }
             }
         } else {
             this.setVelocity(0);
@@ -224,6 +229,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
                 this.disableBody(true, true);
             }
             this.dropWeapon();
+            this.scene.events.emit('enemy-died');
         }
     }
 }
