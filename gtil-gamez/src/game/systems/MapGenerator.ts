@@ -15,12 +15,67 @@ export class MapGenerator {
             return this.generateDungeon(width, height);
         } else if (type === 'terrace' || type === 'boss_terrace') {
             return this.generateTerrace(width, height);
+        } else if (type === 'bridge') {
+            return this.generateBridge(width, height);
         } else {
             return this.generateStandard(width, height);
         }
     }
 
     private static generateStandard(width: number, height: number): LevelData {
+        // ... (Reuse existing logic but wrapped)
+        return this.generateSimpleRooms(width, height);
+    }
+    private static generateBridge(width: number, height: number): LevelData {
+        // Ignoring default width/height, forcing a long map
+        const mapW = 100; // Very long
+        const mapH = 20;  // Narrow height
+
+        const walls: { x: number; y: number }[] = [];
+        const doors: { x: number; y: number; vertical: boolean }[] = [];
+        const enemySpawns: { x: number; y: number }[] = [];
+        const rooms: { x: number; y: number; w: number; h: number; floorType: number }[] = [];
+        const furniture: { x: number; y: number; type: string }[] = [];
+
+        // Define the bridge strip (e.g., y=8 to y=12)
+        const bridgeY = 8;
+        const bridgeH = 6;
+
+        // Floor
+        rooms.push({ x: 0, y: bridgeY, w: mapW, h: bridgeH, floorType: 2 }); // Concrete floor
+
+        // Walls (Railings)
+        for (let x = 0; x < mapW; x++) {
+            walls.push({ x: x, y: bridgeY - 1 }); // Top Rail
+            walls.push({ x: x, y: bridgeY + bridgeH }); // Bottom Rail
+        }
+
+        // Periodic Obstacles (Cars? Barricades?)
+        for (let x = 10; x < mapW - 10; x += 8) {
+            // Randomly place obstacle
+            if (Math.random() > 0.5) {
+                furniture.push({ x: x * 32, y: (bridgeY + 1) * 32, type: 'table' }); // "Barricade"
+                // Or walls
+                walls.push({ x: x, y: bridgeY + 2 });
+            } else {
+                walls.push({ x: x, y: bridgeY + 4 });
+            }
+        }
+
+        // Enemy Spawns (Hoards along the bridge)
+        for (let x = 15; x < mapW - 5; x += 5) {
+            enemySpawns.push({ x: x * 32, y: (bridgeY + 3) * 32 });
+            if (x % 10 === 0) {
+                enemySpawns.push({ x: x * 32, y: (bridgeY + 1) * 32 });
+            }
+        }
+
+        const playerStart = { x: 2 * 32, y: (bridgeY + 3) * 32 };
+
+        return { width: mapW, height: mapH, walls, doors, playerStart, enemySpawns, rooms, furniture };
+    }
+
+    private static removeWall(walls: { x: number, y: number }[], x: number, y: number) {
         // ... (Reuse existing logic but wrapped)
         return this.generateSimpleRooms(width, height);
     }

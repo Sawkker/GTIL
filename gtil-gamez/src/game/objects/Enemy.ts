@@ -35,6 +35,25 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         this.setCollideWorldBounds(true);
         this.setScale(0.15);
 
+        // RANDOM ENEMY VARIANT
+        const rand = Math.random();
+        if (rand < 0.2) {
+            // RUNNER: Fast, Low HP
+            this.speed = 180;
+            this.health = 2;
+            this.setTint(0x0000ff); // Blue
+        } else if (rand < 0.4) {
+            // TANK: Slow, High HP
+            this.speed = 50;
+            this.health = 6;
+            this.setScale(0.2); // Bigger
+            this.setTint(0x00ff00); // Green
+        } else {
+            // NORMAL
+            this.speed = 100;
+            this.health = 3;
+        }
+
         // Center the hitbox
         const newWidth = this.width * 0.6;
         const newHeight = this.height * 0.6;

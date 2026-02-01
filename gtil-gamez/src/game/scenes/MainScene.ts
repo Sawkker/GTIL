@@ -154,8 +154,20 @@ export class MainScene extends Scene {
         doorGraphics.generateTexture('door_texture', 32, 32);
 
         // --- MAP GENERATION START ---
-        const map = this.make.tilemap({ tileWidth: 32, tileHeight: 32, width: 32, height: 24 });
-        // ... (rest of map init) ...
+
+        // 1. Generate Level Data FIRST to get dimensions
+        // distinct default size for standard maps vs others is handled inside generator or ignored
+        this.levelData = MapGenerator.generateLevel(32, 24, this.mapType);
+
+        // 2. Create Tilemap with correct dimensions from LevelData
+        const map = this.make.tilemap({
+            tileWidth: 32,
+            tileHeight: 32,
+            width: this.levelData.width,
+            height: this.levelData.height
+        });
+
+        // Add Tilesets
         const tileset = map.addTilesetImage('tile', undefined, 32, 32);
         const wallTileset = map.addTilesetImage('wall_tile', undefined, 32, 32);
 
@@ -170,8 +182,7 @@ export class MainScene extends Scene {
             if (layer) {
                 this.wallsLayer = layer;
 
-                // GENERATE LEVEL
-                this.levelData = MapGenerator.generateLevel(map.width, map.height, this.mapType);
+                // (LevelData already generated)
 
                 // Initialize Blood Surface (Before items, after potential background)
                 // Size of the map
@@ -282,6 +293,10 @@ export class MainScene extends Scene {
 
             // Initialize Player
             this.player = new Player(this, this.levelData.playerStart.x, this.levelData.playerStart.y);
+
+            // Camera Follow
+            this.cameras.main.startFollow(this.player, true, 0.09, 0.09);
+            this.cameras.main.setZoom(1); // Ensure zoom is 1 (or change if we want 1.5x)
 
 
             // --- COLLISION SETUP (Reordered for Wall safety) ---

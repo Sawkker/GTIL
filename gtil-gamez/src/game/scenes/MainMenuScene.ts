@@ -26,6 +26,7 @@ export class MainMenuScene extends Scene {
         this.createButton(width / 2, height / 2, 'Standard Map', 'standard');
         this.createButton(width / 2, height / 2 + 60, 'Dungeon', 'dungeon');
         this.createButton(width / 2, height / 2 + 120, 'Terrace', 'terrace');
+        this.createButton(width / 2, height / 2 + 180, 'The Bridge (Long)', 'bridge');
     }
 
     private createButton(x: number, y: number, label: string, mapType: string) {
