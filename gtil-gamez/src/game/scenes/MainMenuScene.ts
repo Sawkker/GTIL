@@ -16,7 +16,7 @@ export class MainMenuScene extends Scene {
         const { width, height } = this.scale;
 
         // Title
-        this.add.text(width / 2, height / 3, 'GAME TITLE', {
+        this.add.text(width / 2, height / 3, 'Select Scene', {
             fontSize: '64px',
             color: '#ffffff',
             fontStyle: 'bold'

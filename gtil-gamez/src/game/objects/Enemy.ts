@@ -10,7 +10,7 @@ export enum EnemyState {
 }
 
 export class Enemy extends Phaser.Physics.Arcade.Sprite {
-    private speed: number = 100;
+    protected speed: number = 100;
     private enemyState: EnemyState = EnemyState.IDLE;
     private target: Player;
     private pathfinding: PathfindingManager;
@@ -184,7 +184,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
 
 
 
-    private dropWeapon() {
+    protected dropWeapon() {
         // Create pickup
         const types = ['handgun', 'rifle', 'shotgun'];
         // Weighted random?
@@ -200,7 +200,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         }
     }
 
-    private health: number = 3;
+    protected health: number = 3;
 
     private shoot(rotation: number) {
         if (this.scene.time.now > this.shootTimer) {
@@ -216,6 +216,30 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         if (this.isDead) return;
 
         this.health -= damage;
+
+        // --- BLOOD FX & DAMAGE NUMBERS ---
+        const mainScene = this.scene as any;
+        if (mainScene.particleManager) {
+            mainScene.particleManager.emitBlood(this.x, this.y);
+        }
+
+        // Floating Damage Number
+        const damageText = this.scene.add.text(this.x, this.y - 20, damage.toString(), {
+            fontSize: '20px',
+            color: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 2,
+            fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(100);
+
+        this.scene.tweens.add({
+            targets: damageText,
+            y: this.y - 50,
+            alpha: 0,
+            duration: 800,
+            onComplete: () => damageText.destroy()
+        });
+        // --------------------------------
 
         // Visual Feedback: Flash Red
         this.setTint(0xff0000);

@@ -21,6 +21,14 @@ export class WeaponPickup extends Phaser.Physics.Arcade.Sprite {
 
         this.setScale(1); // Reset scale since we are generating small textures (20x20)
 
+        // Increase Hitbox Size for easier pickup
+        if (this.body) {
+            const hitBoxSize = 48;
+            this.body.setSize(hitBoxSize, hitBoxSize);
+            // Center the hitbox on the sprite
+            this.body.setOffset((this.width - hitBoxSize) / 2, (this.height - hitBoxSize) / 2);
+        }
+
         // Add a glow effect (tween alpha)
         this.alpha = 0.8;
         this.scene.tweens.add({

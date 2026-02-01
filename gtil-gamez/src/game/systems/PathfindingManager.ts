@@ -36,11 +36,13 @@ export class PathfindingManager {
         }
 
         // iterate over layer to find collidable tiles
-        layer.forEachTile((tile) => {
-            if (tile.collides) {
-                grid[tile.y][tile.x] = 1; // 1 = obstacle
-            }
-        });
+        if (layer && layer.forEachTile) {
+            layer.forEachTile((tile) => {
+                if (tile.collides) {
+                    grid[tile.y][tile.x] = 1; // 1 = obstacle
+                }
+            });
+        }
 
         this.easystar.setGrid(grid);
         this.easystar.setAcceptableTiles([0]);

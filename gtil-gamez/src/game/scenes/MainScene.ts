@@ -3,6 +3,7 @@ import { EventBus } from '../EventBus';
 import { Player } from '../objects/Player';
 import { Bullet } from '../objects/Bullet';
 import { Enemy } from '../objects/Enemy';
+import { Boss } from '../objects/Boss';
 import { PathfindingManager } from '../systems/PathfindingManager';
 import { ParticleManager } from '../systems/ParticleManager';
 import { MapGenerator, LevelData } from '../systems/MapGenerator';
@@ -35,6 +36,7 @@ export class MainScene extends Scene {
 
     preload() {
         this.load.image('player', 'assets/player.png'); // Keep legacy for fallback
+        this.load.image('final_boss', 'assets/final_boss_australian_spyder.png');
         this.load.spritesheet('player_feet', 'assets/player_feet.png', { frameWidth: 64, frameHeight: 64 }); // Assuming 64x64 frames
         this.load.image('player_handgun', 'assets/player_handgun.png');
         this.load.image('player_rifle', 'assets/player_handgun.png');
@@ -42,15 +44,8 @@ export class MainScene extends Scene {
         this.load.image('tile', 'assets/tile.png');
         this.load.image('enemy', 'assets/enemy.png');
         // Load furniture as spritesheet (assuming 64x64 or similar grid)
-        // Adjust frameWidth/Height based on generated asset inspection or guess. 
-        // User image showed 2x grid, big items. Let's guess 64x64 for now.
         this.load.spritesheet('furniture', 'assets/furniture.png', { frameWidth: 64, frameHeight: 64 });
         this.load.image('floors', 'assets/floors.png');
-        // Load blood splats as spritesheet (assuming 32x32 frames or similar, let's guess 32x32 for now based on generation)
-        // If single image, load as image. Let's load as spritesheet to use frames if possible.
-        // Actually, generated image is likely a sheet. Let's assume 32x32 or 64x64.
-        // Let's safe load as spritesheet with small frames, or just image and crop in particles.
-        // For simplicity, let's load as spritesheet 32x32.
         this.load.spritesheet('blood_splats', 'assets/blood_splats.png', { frameWidth: 32, frameHeight: 32 });
     }
 
@@ -258,7 +253,7 @@ export class MainScene extends Scene {
                 this.levelData.doors.forEach(d => {
                     const wx = d.x * 32 + 16;
                     const wy = d.y * 32 + 16;
-                    const door = new Door(this, wx, wy, 'door_texture');
+                    const door = new Door(this, wx, wy, 'door_texture', d.vertical);
                     this.doors.add(door);
                 });
             }
@@ -331,6 +326,7 @@ export class MainScene extends Scene {
                         return;
                     }
 
+                    console.log(`Bullet Hit Enemy (ID: ${e.getData('id') || '?'})`);
                     console.log(`Enemy Hit by Bullet! Owner: ${b.ownerType}, Damage: ${b.damage}`);
                     e.hit(b.damage);
                     b.kill();
@@ -341,7 +337,7 @@ export class MainScene extends Scene {
                     const b = bullet as Bullet;
                     // Strict owner check
                     if (b.ownerType === 'enemy' && b.active) {
-                        console.log('DEBUG: Player hit by enemy bullet!');
+                        console.log('DEBUG: Player hit by enemy bullet! Damage:', b.damage);
                         b.kill();
 
                         // Player Hit Logic
@@ -378,14 +374,13 @@ export class MainScene extends Scene {
                 // We can't easily collide "all pickups" unless they are in a Group.
                 // Ideally, MainScene should manage the group.
 
-                if (!this.pickups) {
-                    this.pickups = this.physics.add.group({
-                        classType: WeaponPickup,
-                        runChildUpdate: true
-                    });
-                    // Hack to expose to enemies (bad practice but quick fix)
-                    (this as any).pickupGroup = this.pickups;
-                }
+                // Initialize Pickups Group
+                this.pickups = this.physics.add.group({
+                    classType: WeaponPickup,
+                    runChildUpdate: true
+                });
+                // Hack to expose to enemies (bad practice but quick fix)
+                (this as any).pickupGroup = this.pickups;
 
                 this.physics.add.overlap(this.player, this.pickups, (player, pickup) => {
                     const p = player as Player;
@@ -434,36 +429,33 @@ export class MainScene extends Scene {
                 // Listen for enemy death to respawn
                 this.events.on('enemy-died', () => {
                     this.totalEnemiesKilled++;
+                    // SCORING IMPLEMENTATION
+                    this.score += 100;
+                    EventBus.emit('score-change', this.score);
+                    console.log('Enemy Killed! Score:', this.score);
 
-                    // Check logic: Change map every 23 kills
-                    if (this.totalEnemiesKilled > 0 && this.totalEnemiesKilled % 23 === 0) {
-                        console.log('23 Kills Reached! Changing Design...');
-
-                        let nextMap = 'standard';
-                        switch (this.mapType) {
-                            case 'standard': nextMap = 'dungeon'; break;
-                            case 'dungeon': nextMap = 'terrace'; break;
-                            case 'terrace': nextMap = 'standard'; break;
-                            default: nextMap = 'standard';
-                        }
-
-                        // Fade out for transition
-                        this.cameras.main.fade(500, 0, 0, 0, false, (camera: any, progress: number) => {
-                            if (progress === 1) {
-                                this.scene.restart({
-                                    mapType: nextMap,
-                                    enemiesKilled: this.totalEnemiesKilled,
-                                    health: this.health,
-                                    score: this.score
-                                });
-                            }
-                        });
-                    } else {
+                    // Check logic: Change map every 23 kills OR Boss Wave
+                    if (this.totalEnemiesKilled === 23) {
+                        console.log('23 Kills Reached! FINAL BOSS APPROACHING...');
+                        this.spawnBossWave();
+                    } else if (this.totalEnemiesKilled < 23) {
                         // Regular respawn logic
                         this.time.delayedCall(5000, () => {
                             this.spawnEnemies(1);
                         });
                     }
+                });
+
+                // Listen for Boss Death
+                this.events.on('boss-died', () => {
+                    console.log('BOSS DEFEATED!');
+                    this.physics.pause();
+
+                    this.cameras.main.fade(2000, 0, 0, 0, false, (camera: any, progress: number) => {
+                        if (progress === 1) {
+                            this.scene.start('GameOverScene', { victory: true, score: this.score });
+                        }
+                    });
                 });
 
                 // Start the game loop
@@ -581,6 +573,44 @@ export class MainScene extends Scene {
             this.enemies.add(enemy);
         }
     }
+
+    spawnBossWave() {
+        // Warning Text
+        const warnText = this.add.text(this.scale.width / 2, this.scale.height / 2, 'FINAL BOSS APPROACHING', {
+            fontSize: '48px',
+            color: '#ff0000',
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 4
+        }).setOrigin(0.5).setScrollFactor(0);
+
+        this.tweens.add({
+            targets: warnText,
+            alpha: 0,
+            yoyo: true,
+            repeat: 5,
+            duration: 200,
+            onComplete: () => warnText.destroy()
+        });
+
+        // Spawn Boss (Find a large room or near center?)
+        let x = 400, y = 300;
+        if (this.levelData.rooms.length > 0) {
+            // Spawn in the last room (usually furthest?)
+            const r = this.levelData.rooms[this.levelData.rooms.length - 1];
+            x = (r.x + r.w / 2) * 32;
+            y = (r.y + r.h / 2) * 32;
+        }
+
+        const boss = new Boss(this, x, y, this.player, this.pathfinding, this.wallsLayer);
+        this.enemies.add(boss);
+
+        // Spawn 10 Minions slightly delayed
+        this.time.delayedCall(2000, () => {
+            this.spawnEnemies(10);
+        });
+    }
+
     handlePlayerEnemyCollision(player: Player, enemy: Enemy) {
         if (enemy.isDead) return;
 
