@@ -15,24 +15,40 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     private weapons: Weapon[] = [];
     private currentWeaponIndex: number = 0;
 
+    // Child parts
+    private leftFoot: Phaser.GameObjects.Sprite;
+    private rightFoot: Phaser.GameObjects.Sprite;
+    private walkTimer: number = 0;
+
     constructor(scene: Scene, x: number, y: number) {
-        // LEGS (Base Sprite)
-        super(scene, x, y, 'player_feet');
+        // Parent is invisible container for physics
+        super(scene, x, y, 'tex_foot');
+
         scene.add.existing(this);
         scene.physics.add.existing(this);
+        this.setVisible(false); // Hide the main physics body sprite (we use children)
 
         this.setCollideWorldBounds(true);
-        this.setOrigin(0.5, 0.5);
-        this.setScale(0.15);
-
         // Adjust body size
-        this.body?.setCircle(12);
+        if (this.body) {
+            this.body.setCircle(12);
+            this.body.setOffset(0, 0); // Reset offset since texture change
+        }
 
-        // TORSO (Child Sprite)
+        // FEET (Independent Sprites - Not children of this to avoid rotating with mouse)
+        // Actually, feet SHOuLD rotate with body or movement? 
+        // Top down shooters: Feet align with MOVEMENT, Body aligns with MOUSE.
+        // So we add them to scene and update them in update()
+        this.leftFoot = scene.add.sprite(x, y, 'tex_foot');
+        this.rightFoot = scene.add.sprite(x, y, 'tex_foot');
+        this.leftFoot.setDepth(10);
+        this.rightFoot.setDepth(10);
+
+        // TORSO
         this.torso = scene.add.sprite(x, y, 'tex_player_pistol');
         this.torso.setOrigin(0.5, 0.5);
         this.torso.setScale(1);
-        this.torso.setDepth(this.depth + 1); // Ensure torso is above legs
+        this.torso.setDepth(12); // Above feet
 
         // Initialize Weapons
         this.weapons.push(new Pistol(scene));
@@ -232,6 +248,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     // Cleanup
     destroy(fromScene?: boolean) {
         this.torso.destroy();
+        this.leftFoot.destroy();
+        this.rightFoot.destroy();
         super.destroy(fromScene);
     }
 }

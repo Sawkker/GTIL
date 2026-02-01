@@ -131,33 +131,72 @@ export class MainScene extends Scene {
         shotgunAmmo.strokeTriangle(10, 0, 20, 20, 0, 20);
         shotgunAmmo.generateTexture('ammo_shotgun', 20, 20);
 
-        // --- PLAYER WEAPON TEXTURES (Procedural) ---
-        // 1. Pistol
+        // --- PLAYER WEAPON TEXTURES (Procedural with Character Parts) ---
+        // Common Colors
+        const cSkin = 0xffccaa; // Skin
+        const cVest = 0x333333; // Dark Vest
+        const cHair = 0x442200; // Brown Hair
+
+        // 1. Pistol (Compact)
         const pPistol = this.make.graphics({ x: 0, y: 0 });
-        pPistol.fillStyle(0x0088ff); // Body Blue
-        pPistol.fillCircle(20, 20, 12);
-        pPistol.fillStyle(0x555555); // Gun Grey
-        pPistol.fillRect(28, 17, 12, 6); // Short barrel
-        pPistol.generateTexture('tex_player_pistol', 40, 40);
+        // Body/Shoulders
+        pPistol.fillStyle(cVest);
+        pPistol.fillCircle(20, 20, 14); // Vest
+        // Head
+        pPistol.fillStyle(cSkin);
+        pPistol.fillCircle(20, 20, 8);
+        // Arms (Holding gun forward)
+        pPistol.fillStyle(cSkin);
+        pPistol.fillCircle(30, 26, 4); // Right Hand
+        pPistol.fillCircle(30, 14, 4); // Left Hand
+        // Gun
+        pPistol.fillStyle(0x555555);
+        pPistol.fillRect(30, 17, 12, 6); // Slide
+        pPistol.generateTexture('tex_player_pistol', 44, 40);
 
-        // 2. Rifle
+        // 2. Rifle (Long)
         const pRifle = this.make.graphics({ x: 0, y: 0 });
-        pRifle.fillStyle(0x0088ff);
-        pRifle.fillCircle(20, 20, 12);
-        pRifle.fillStyle(0x333333); // Darker
-        pRifle.fillRect(28, 17, 24, 6); // Long barrel
-        pRifle.fillStyle(0x000000); // Mag/Stock hint
-        pRifle.fillRect(25, 17, 8, 8);
-        pRifle.generateTexture('tex_player_rifle', 52, 40); // Wider texture for long gun
+        // Body
+        pRifle.fillStyle(cVest);
+        pRifle.fillCircle(20, 20, 14);
+        // Head
+        pRifle.fillStyle(cSkin);
+        pRifle.fillCircle(20, 20, 8);
+        // Arms (Right hand on grip, Left on barrel)
+        pRifle.fillStyle(cSkin);
+        pRifle.fillCircle(28, 24, 4); // Right Hand (Trigger)
+        pRifle.fillCircle(40, 22, 4); // Left Hand (Foregrip)
+        // Gun
+        pRifle.fillStyle(0x222222);
+        pRifle.fillRect(28, 18, 30, 4); // Barrel
+        pRifle.fillStyle(0x444444);
+        pRifle.fillRect(24, 16, 10, 8); // Receiver/Stock
+        pRifle.generateTexture('tex_player_rifle', 64, 40);
 
-        // 3. Shotgun
+        // 3. Shotgun (Bulkier)
         const pShotgun = this.make.graphics({ x: 0, y: 0 });
-        pShotgun.fillStyle(0x0088ff);
-        pShotgun.fillCircle(20, 20, 12);
-        pShotgun.fillStyle(0x222222); // Black
-        pShotgun.fillRect(28, 16, 18, 8); // Thick barrel
-        pShotgun.fillRect(28, 16, 4, 8); // Pump handle
-        pShotgun.generateTexture('tex_player_shotgun', 50, 40);
+        // Body
+        pShotgun.fillStyle(cVest);
+        pShotgun.fillCircle(20, 20, 14);
+        // Head
+        pShotgun.fillStyle(cSkin);
+        pShotgun.fillCircle(20, 20, 8);
+        // Arms
+        pShotgun.fillStyle(cSkin);
+        pShotgun.fillCircle(28, 24, 4);
+        pShotgun.fillCircle(45, 20, 4); // Left Hand (Pump)
+        // Gun
+        pShotgun.fillStyle(0x111111);
+        pShotgun.fillRect(28, 17, 24, 6); // Barrel
+        pShotgun.fillStyle(0x552200); // Wood pump
+        pShotgun.fillRect(42, 16, 6, 8);
+        pShotgun.generateTexture('tex_player_shotgun', 60, 40);
+
+        // --- FOOT TEXTURE ---
+        const pFoot = this.make.graphics({ x: 0, y: 0 });
+        pFoot.fillStyle(0x111111); // Black Shoe
+        pFoot.fillRoundedRect(0, 0, 12, 6, 2);
+        pFoot.generateTexture('tex_foot', 12, 6);
 
         // ... (rest of map init) ...
         const graphics = this.make.graphics({ x: 0, y: 0 });
