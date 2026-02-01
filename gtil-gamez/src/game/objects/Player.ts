@@ -31,7 +31,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         // TORSO (Child Sprite)
         this.torso = scene.add.sprite(x, y, 'tex_player_pistol');
         this.torso.setOrigin(0.5, 0.5);
-        this.torso.setScale(0.15);
+        this.torso.setScale(1);
         this.torso.setDepth(this.depth + 1); // Ensure torso is above legs
 
         // Initialize Weapons
