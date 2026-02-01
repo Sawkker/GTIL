@@ -55,7 +55,9 @@ export abstract class Weapon {
     }
 
     reload() {
-        if (this.isReloading || this.currentMag === this.magSize || this.currentReserve <= 0) return;
+        if (this.isReloading || this.currentMag === this.magSize) return;
+        // Check reserve if not infinite
+        if (this.maxReserve !== -1 && this.currentReserve <= 0) return;
 
         console.log('Reloading...');
         this.isReloading = true;
@@ -71,11 +73,10 @@ export abstract class Weapon {
         if (!this.isReloading) return; // Cancelled?
 
         const needed = this.magSize - this.currentMag;
-        const take = Math.min(needed, this.currentReserve);
+        let take = needed;
 
-        // Special case: Infinite reserve for Pistol?
-        // Let's use maxReserve = -1 for infinite source
         if (this.maxReserve !== -1) {
+            take = Math.min(needed, this.currentReserve);
             this.currentReserve -= take;
         }
 
