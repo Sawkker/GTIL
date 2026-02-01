@@ -2,7 +2,7 @@
 
 Are you ready to survive the neon chaos? **GTIL Phaser Shooter** is a fast-paced, top-down shooter where strategy meets reflex. Battle waves of enemies, switch between a diverse arsenal of weapons, and navigate a neon-lit arena to achieve victory.
 
-![Game Banner](public/assets/player.png)
+![Game Banner](public/assets/player1.png)
 
 ## 🎮 Game Overview
 
