@@ -131,6 +131,34 @@ export class MainScene extends Scene {
         shotgunAmmo.strokeTriangle(10, 0, 20, 20, 0, 20);
         shotgunAmmo.generateTexture('ammo_shotgun', 20, 20);
 
+        // --- PLAYER WEAPON TEXTURES (Procedural) ---
+        // 1. Pistol
+        const pPistol = this.make.graphics({ x: 0, y: 0 });
+        pPistol.fillStyle(0x0088ff); // Body Blue
+        pPistol.fillCircle(20, 20, 12);
+        pPistol.fillStyle(0x555555); // Gun Grey
+        pPistol.fillRect(28, 17, 12, 6); // Short barrel
+        pPistol.generateTexture('tex_player_pistol', 40, 40);
+
+        // 2. Rifle
+        const pRifle = this.make.graphics({ x: 0, y: 0 });
+        pRifle.fillStyle(0x0088ff);
+        pRifle.fillCircle(20, 20, 12);
+        pRifle.fillStyle(0x333333); // Darker
+        pRifle.fillRect(28, 17, 24, 6); // Long barrel
+        pRifle.fillStyle(0x000000); // Mag/Stock hint
+        pRifle.fillRect(25, 17, 8, 8);
+        pRifle.generateTexture('tex_player_rifle', 52, 40); // Wider texture for long gun
+
+        // 3. Shotgun
+        const pShotgun = this.make.graphics({ x: 0, y: 0 });
+        pShotgun.fillStyle(0x0088ff);
+        pShotgun.fillCircle(20, 20, 12);
+        pShotgun.fillStyle(0x222222); // Black
+        pShotgun.fillRect(28, 16, 18, 8); // Thick barrel
+        pShotgun.fillRect(28, 16, 4, 8); // Pump handle
+        pShotgun.generateTexture('tex_player_shotgun', 50, 40);
+
         // ... (rest of map init) ...
         const graphics = this.make.graphics({ x: 0, y: 0 });
         graphics.fillStyle(0xffff00);
