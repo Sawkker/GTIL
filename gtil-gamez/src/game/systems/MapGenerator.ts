@@ -13,7 +13,7 @@ export class MapGenerator {
     static generateLevel(width: number, height: number, type: string = 'standard'): LevelData {
         if (type === 'dungeon') {
             return this.generateDungeon(width, height);
-        } else if (type === 'terrace') {
+        } else if (type === 'terrace' || type === 'boss_terrace') {
             return this.generateTerrace(width, height);
         } else {
             return this.generateStandard(width, height);

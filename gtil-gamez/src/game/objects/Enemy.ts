@@ -216,6 +216,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         if (this.isDead) return;
 
         this.health -= damage;
+        this.scene.events.emit('enemy-hit');
 
         // --- BLOOD FX & DAMAGE NUMBERS ---
         const mainScene = this.scene as any;

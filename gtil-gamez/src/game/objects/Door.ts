@@ -45,6 +45,7 @@ export class Door extends Phaser.Physics.Arcade.Sprite {
         if (this.scene.tweens.isTweening(this)) return;
 
         this.isOpen = !this.isOpen;
+        this.scene.events.emit('door-toggle');
 
         const targetAngle = this.isOpen ? this.openAngle : this.closedAngle;
 

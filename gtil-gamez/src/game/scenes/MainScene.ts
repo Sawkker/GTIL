@@ -9,6 +9,7 @@ import { ParticleManager } from '../systems/ParticleManager';
 import { MapGenerator, LevelData } from '../systems/MapGenerator';
 import { Door } from '../objects/Door';
 import { WeaponPickup } from '../objects/WeaponPickup';
+import { SoundManager } from '../systems/SoundManager';
 
 export class MainScene extends Scene {
     private keyQ!: Phaser.Input.Keyboard.Key;
@@ -65,6 +66,7 @@ export class MainScene extends Scene {
     private health: number = 100;
     private lastDamageTime: number = 0;
     private totalEnemiesKilled: number = 0;
+    private soundManager!: SoundManager;
 
     // Blood Surface
     private bloodSurface!: Phaser.GameObjects.RenderTexture;
@@ -102,6 +104,9 @@ export class MainScene extends Scene {
 
         // Initialize Particle Manager
         this.particleManager = new ParticleManager(this);
+
+        // Initialize Sound Manager
+        this.soundManager = new SoundManager(this);
 
         // ... Graphics Generation ...
         // Generate Ammo Textures (High Visibility Shapes)
@@ -432,16 +437,28 @@ export class MainScene extends Scene {
                     // SCORING IMPLEMENTATION
                     this.score += 100;
                     EventBus.emit('score-change', this.score);
-                    console.log('Enemy Killed! Score:', this.score);
 
-                    // Check logic: Change map every 23 kills OR Boss Wave
+                    // Logic: Change map every 23 kills -> Boss Map
                     if (this.totalEnemiesKilled === 23) {
-                        console.log('23 Kills Reached! FINAL BOSS APPROACHING...');
-                        this.spawnBossWave();
+                        console.log('23 Kills Reached! Traveling to Final Boss...');
+                        this.physics.pause();
+                        this.cameras.main.fade(1000, 0, 0, 0, false, (camera: any, progress: number) => {
+                            if (progress === 1) {
+                                // Transition to Boss Map
+                                this.scene.restart({
+                                    mapType: 'boss_terrace',
+                                    enemiesKilled: this.totalEnemiesKilled,
+                                    health: this.health,
+                                    score: this.score
+                                });
+                            }
+                        });
                     } else if (this.totalEnemiesKilled < 23) {
                         // Regular respawn logic
                         this.time.delayedCall(5000, () => {
-                            this.spawnEnemies(1);
+                            if (this.mapType !== 'boss_terrace') { // Don't respawn regulars in boss map
+                                this.spawnEnemies(1);
+                            }
                         });
                     }
                 });
@@ -459,7 +476,14 @@ export class MainScene extends Scene {
                 });
 
                 // Start the game loop
-                this.startNextRound();
+                // If this is the Boss Map, start the Boss Wave immediately
+                if (this.mapType === 'boss_terrace') {
+                    this.time.delayedCall(1000, () => {
+                        this.spawnBossWave();
+                    });
+                } else {
+                    this.startNextRound();
+                }
             }
         }
     }
@@ -576,7 +600,7 @@ export class MainScene extends Scene {
 
     spawnBossWave() {
         // Warning Text
-        const warnText = this.add.text(this.scale.width / 2, this.scale.height / 2, 'FINAL BOSS APPROACHING', {
+        const warnText = this.add.text(this.scale.width / 2, this.scale.height / 2, 'FINAL BOSS + 23 MINIONS', {
             fontSize: '48px',
             color: '#ff0000',
             fontStyle: 'bold',
@@ -593,21 +617,25 @@ export class MainScene extends Scene {
             onComplete: () => warnText.destroy()
         });
 
-        // Spawn Boss (Find a large room or near center?)
-        let x = 400, y = 300;
+        // Spawn Boss (Find center of terrace)
+        // Terrace is ~ 22x14. Center ~ 11, 7.
+        let x = 11 * 32, y = 7 * 32;
+
+        // If rooms exist (it should), use logic
         if (this.levelData.rooms.length > 0) {
-            // Spawn in the last room (usually furthest?)
-            const r = this.levelData.rooms[this.levelData.rooms.length - 1];
+            const r = this.levelData.rooms[0]; // Terrace usually has 1 big room
             x = (r.x + r.w / 2) * 32;
             y = (r.y + r.h / 2) * 32;
         }
 
         const boss = new Boss(this, x, y, this.player, this.pathfinding, this.wallsLayer);
         this.enemies.add(boss);
+        this.events.emit('boss-spawn');
 
-        // Spawn 10 Minions slightly delayed
-        this.time.delayedCall(2000, () => {
-            this.spawnEnemies(10);
+        // Spawn 23 Minions as requested
+        // Stagger them slightly so it doesn't lag instant spawn
+        this.time.delayedCall(1500, () => {
+            this.spawnEnemies(23);
         });
     }
 

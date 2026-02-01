@@ -137,6 +137,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         // Fire from Torso rotation/position
         if (weapon.tryShoot(time, this.x, this.y, this.torso.rotation, bullets)) {
             EventBus.emit('ammo-change', weapon.getAmmoStatus());
+            // Map weapon name to simple type for sound
+            let type = 'handgun';
+            if (weapon.name === 'Assault Rifle') type = 'rifle';
+            if (weapon.name === 'Shotgun') type = 'shotgun';
+            this.scene.events.emit('weapon-shoot', type);
             return true;
         } else if (weapon.currentMag === 0 && !weapon.isReloading && Phaser.Input.Keyboard.JustDown(this.scene.input.activePointer.button as any)) {
             // Optional: Click sound or auto-reload on empty click
@@ -205,6 +210,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         }
 
         pickup.destroy();
+        this.scene.events.emit('pickup-collected');
     }
 
 
