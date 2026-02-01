@@ -132,115 +132,106 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         // We don't rotate 'this' (legs) to pointer anymore, only to movement
     }
 
+    shoot(bullets: Phaser.Physics.Arcade.Group, time: number) {
+        const weapon = this.weapons[this.currentWeaponIndex];
+        // Fire from Torso rotation/position
+        if (weapon.tryShoot(time, this.x, this.y, this.torso.rotation, bullets)) {
+            EventBus.emit('ammo-change', weapon.getAmmoStatus());
+            // Map weapon name to simple type for sound
+            let type = 'handgun';
+            if (weapon.name === 'Assault Rifle') type = 'rifle';
+            if (weapon.name === 'Shotgun') type = 'shotgun';
+            this.scene.events.emit('weapon-shoot', type);
+
+            // RECOIL ANIMATION
+            const recoilDist = 5;
+            const angle = this.torso.rotation;
+            this.torso.x -= Math.cos(angle) * recoilDist;
+            this.torso.y -= Math.sin(angle) * recoilDist;
+
+            this.scene.tweens.add({
+                targets: this.torso,
+                x: this.x,
+                y: this.y,
+                duration: 50,
+                ease: 'Power1'
+            });
+
+            return true;
+        } else if (weapon.currentMag === 0 && !weapon.isReloading && Phaser.Input.Keyboard.JustDown(this.scene.input.activePointer.button as any)) {
+            // Optional: Click sound or auto-reload on empty click
+            // weapon.reload();
+        }
+        return false;
+    }
+
+    forceReload() {
+        const weapon = this.weapons[this.currentWeaponIndex];
+        weapon.reload();
+        // Update UI immediately to show "RELOADING..." or similar handled in getAmmoStatus logic updates
+        // We might want a tick update for UI if it says "Reloading...", but simplistic event driven is fine
+        EventBus.emit('ammo-change', weapon.getAmmoStatus());
+
+        // Schedule update after reload finishes?
+        this.scene.time.delayedCall(weapon.reloadTime + 50, () => {
+            if (this.weapons[this.currentWeaponIndex] === weapon) {
+                EventBus.emit('ammo-change', weapon.getAmmoStatus());
+            }
+        });
+    }
+
+    nextWeapon() {
+        // Cancel current reload if switching? Or let it continue in bg?
+        // Let's cancel or just switch. The Weapon class doesn't have cancel logic exposed cleanly but flag holds.
+        // If we switch back, it might still be reloading. That's a feature!
+
+        this.currentWeaponIndex++;
+        if (this.currentWeaponIndex >= this.weapons.length) {
+            this.currentWeaponIndex = 0;
+        }
+
+        const weapon = this.weapons[this.currentWeaponIndex];
+        console.log(`Switched to: ${weapon.name}`);
+
+        // Update Texture
+        if (weapon.name === 'Pistol') this.torso.setTexture('tex_player_pistol');
+        else if (weapon.name === 'Assault Rifle') this.torso.setTexture('tex_player_rifle');
+        else if (weapon.name === 'Shotgun') this.torso.setTexture('tex_player_shotgun');
+
         EventBus.emit('weapon-changed', weapon.name);
         EventBus.emit('ammo-change', weapon.getAmmoStatus());
-
-// Update Texture
-if (weapon.name === 'Pistol') this.torso.setTexture('tex_player_pistol');
-else if (weapon.name === 'Assault Rifle') this.torso.setTexture('tex_player_rifle');
-else if (weapon.name === 'Shotgun') this.torso.setTexture('tex_player_shotgun');
     }
 
-shoot(bullets: Phaser.Physics.Arcade.Group, time: number) {
-    const weapon = this.weapons[this.currentWeaponIndex];
-    // Fire from Torso rotation/position
-    if (weapon.tryShoot(time, this.x, this.y, this.torso.rotation, bullets)) {
-        EventBus.emit('ammo-change', weapon.getAmmoStatus());
-        // Map weapon name to simple type for sound
-        let type = 'handgun';
-        if (weapon.name === 'Assault Rifle') type = 'rifle';
-        if (weapon.name === 'Shotgun') type = 'shotgun';
-        this.scene.events.emit('weapon-shoot', type);
 
-        // RECOIL ANIMATION
-        const recoilDist = 5;
-        const angle = this.torso.rotation;
-        this.torso.x -= Math.cos(angle) * recoilDist;
-        this.torso.y -= Math.sin(angle) * recoilDist;
-
-        this.scene.tweens.add({
-            targets: this.torso,
-            x: this.x,
-            y: this.y,
-            duration: 50,
-            ease: 'Power1'
-        });
-
-        return true;
-    } else if (weapon.currentMag === 0 && !weapon.isReloading && Phaser.Input.Keyboard.JustDown(this.scene.input.activePointer.button as any)) {
-        // Optional: Click sound or auto-reload on empty click
-        // weapon.reload();
+    getCurrentWeaponName(): string {
+        return this.weapons[this.currentWeaponIndex].name;
     }
-    return false;
-}
 
-forceReload() {
-    const weapon = this.weapons[this.currentWeaponIndex];
-    weapon.reload();
-    // Update UI immediately to show "RELOADING..." or similar handled in getAmmoStatus logic updates
-    // We might want a tick update for UI if it says "Reloading...", but simplistic event driven is fine
-    EventBus.emit('ammo-change', weapon.getAmmoStatus());
+    handlePickup(pickup: WeaponPickup) {
+        let nameMatch = '';
+        if (pickup.weaponType === 'handgun') nameMatch = 'Pistol';
+        else if (pickup.weaponType === 'rifle') nameMatch = 'Assault Rifle';
+        else if (pickup.weaponType === 'shotgun') nameMatch = 'Shotgun';
 
-    // Schedule update after reload finishes?
-    this.scene.time.delayedCall(weapon.reloadTime + 50, () => {
-        if (this.weapons[this.currentWeaponIndex] === weapon) {
-            EventBus.emit('ammo-change', weapon.getAmmoStatus());
+        const weapon = this.weapons.find(w => w.name === nameMatch);
+        if (weapon) {
+            weapon.addAmmo(pickup.ammo);
+            console.log(`Picked up ${nameMatch} ammo: ${pickup.ammo}`);
+
+            // If it's the current weapon, update UI
+            if (this.getCurrentWeaponName() === nameMatch) {
+                EventBus.emit('ammo-change', weapon.getAmmoStatus());
+            }
         }
-    });
-}
 
-nextWeapon() {
-    // Cancel current reload if switching? Or let it continue in bg?
-    // Let's cancel or just switch. The Weapon class doesn't have cancel logic exposed cleanly but flag holds.
-    // If we switch back, it might still be reloading. That's a feature!
-
-    this.currentWeaponIndex++;
-    if (this.currentWeaponIndex >= this.weapons.length) {
-        this.currentWeaponIndex = 0;
+        pickup.destroy();
+        this.scene.events.emit('pickup-collected');
     }
 
-    const weapon = this.weapons[this.currentWeaponIndex];
-    console.log(`Switched to: ${weapon.name}`);
 
-    // Keep consistent texture
-    // if (weapon.name === 'Pistol') this.torso.setTexture('player_handgun');
-    // else if (weapon.name === 'Assault Rifle') this.torso.setTexture('player_rifle');
-    // else if (weapon.name === 'Shotgun') this.torso.setTexture('player_shotgun');
-
-    EventBus.emit('weapon-changed', weapon.name);
-    EventBus.emit('ammo-change', weapon.getAmmoStatus());
-}
-
-
-getCurrentWeaponName(): string {
-    return this.weapons[this.currentWeaponIndex].name;
-}
-
-handlePickup(pickup: WeaponPickup) {
-    let nameMatch = '';
-    if (pickup.weaponType === 'handgun') nameMatch = 'Pistol';
-    else if (pickup.weaponType === 'rifle') nameMatch = 'Assault Rifle';
-    else if (pickup.weaponType === 'shotgun') nameMatch = 'Shotgun';
-
-    const weapon = this.weapons.find(w => w.name === nameMatch);
-    if (weapon) {
-        weapon.addAmmo(pickup.ammo);
-        console.log(`Picked up ${nameMatch} ammo: ${pickup.ammo}`);
-
-        // If it's the current weapon, update UI
-        if (this.getCurrentWeaponName() === nameMatch) {
-            EventBus.emit('ammo-change', weapon.getAmmoStatus());
-        }
+    // Cleanup
+    destroy(fromScene?: boolean) {
+        this.torso.destroy();
+        super.destroy(fromScene);
     }
-
-    pickup.destroy();
-    this.scene.events.emit('pickup-collected');
-}
-
-
-// Cleanup
-destroy(fromScene ?: boolean) {
-    this.torso.destroy();
-    super.destroy(fromScene);
-}
 }
