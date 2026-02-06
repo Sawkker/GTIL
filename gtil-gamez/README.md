@@ -1,48 +1,55 @@
 # GTIL Phaser Shooter
 
-Are you ready to survive the neon chaos? **GTIL Phaser Shooter** is a fast-paced, top-down shooter where strategy meets reflex. Battle waves of enemies, switch between a diverse arsenal of weapons, and navigate a neon-lit arena to achieve victory.
+**GTIL Phaser Shooter** is an intense, top-down survival shooter built with **Next.js** and **Phaser 3**. Choose your operative, select your battleground, and survive the neon chaos against waves of smart enemies and epic bosses.
 
 ![Game Banner](public/assets/player1.png)
 
 ## 🎮 Game Overview
 
-You are a lone operative dropped into a hostile, procedurally generated arena. Your mission: survive 3 intense rounds of enemy assaults. 
+You are an elite operative dropped into hostile territory. Your mission is simple: **Eliminate the threat**. 
 
-**Key Features:**
-- **Dynamic Combat:** Experience responsive twin-stick shooter mechanics.
-- **Weapon Arsenal:** Switch seamlessly between a **Pistol** (Infinite Ammo), **Assault Rifle** (Rapid Fire), and **Shotgun** (Spread Damage).
-- **Smart Enemies:** Face off against enemies that use pathfinding to hunt you down and hide behind cover.
-- **Visuals:** Enjoy a retro-neon aesthetic with dynamic lighting, blood particles, and bullet trails.
-- **Progression:** Survive rounds to earn score bonuses and health restoration.
+Survive waves of enemies, scavenge for ammo, utilize tactical cover, and reach **23 Kills** to summon the **Final Boss**. Failure means starting over, but victory immortalizes you in the **High Score Table**.
+
+### ✨ Key Features
+- **3 Playable Characters:** Choose your playstyle with **Commando** (Balanced), **Spectre** (Stealth/Speed), or **Titan** (Tank).
+- **Procedural & Hand-Crafted Maps:** Fight across 4 unique environments: **Standard**, **Dungeon**, **Terrace**, and **The Bridge**.
+- **Dynamic Combat:** Swap between **Pistol**, **Assault Rifle**, and **Shotgun** on the fly.
+- **Boss Battles:** Face off against the "Final Boss" with a dedicated health bar and massive minions.
+- **Smart AI:** Enemies use A* Pathfinding to hunt you down, hide, and flank.
+- **Persistence:** Local High Score system saves your best runs.
+- **Polished UI:** Full menu system with Settings, Volume Control, and premium visual effects.
 
 ## 🕹️ Controls
 
-Master the controls to dominate the arena:
+| Action | Control | Description |
+| :--- | :--- | :--- |
+| **Move** | `W`, `A`, `S`, `D` | Navigate the arena |
+| **Aim** | Mouse Cursor | Look direction |
+| **Shoot** | Left Click | Fire current weapon |
+| **Switch Weapon** | `Q` | Cycle Pistol -> Rifle -> Shotgun |
+| **Reload** | `R` | Force weapon reload |
+| **Interact** | `E` | Open/Close Doors |
+| **Dash** | `Space` | Quick burst of speed (Cooldown applies) |
 
-| Action | Control |
-| :--- | :--- |
-| **Move** | `W`, `A`, `S`, `D` Keys |
-| **Aim** | Mouse Cursor |
-| **Shoot** | Left Mouse Button |
-| **Switch Weapon** | `Q` Key |
+## 👥 Characters
 
-> **Tip:** Keep moving! Standing still makes you an easy target for the enemy AI.
+| Class | Color | Description |
+| :--- | :--- | :--- |
+| **Commando** | Orange | Balanced stats, standard loadout. The classic soldier. |
+| **Spectre** | Blue | High speed, sleek visual style. Best for kiting enemies. |
+| **Titan** | Red | Imposing presence. Built for holding the line. |
 
 ## 🚀 Installation & Setup
-
-Follow these steps to get the game running locally:
 
 1.  **Clone the repository:**
     ```bash
     git clone https://github.com/Sawkker/GTIL.git
-    cd GTIL/gtil-game
+    cd GTIL/gtil-gamez
     ```
 
 2.  **Install dependencies:**
     ```bash
     npm install
-    # or
-    yarn install
     ```
 
 3.  **Run the development server:**
@@ -53,12 +60,14 @@ Follow these steps to get the game running locally:
 4.  **Play:**
     Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## 🛠️ Built With
+## 🛠️ Tech Stack
 
-- **[Next.js](https://nextjs.org/)** - For the React framework structure.
-- **[Phaser 3](https://phaser.io/)** - The powerful game engine driving the mechanics.
-- **[TypeScript](https://www.typescriptlang.org/)** - For type-safe, robust code.
+- **[Next.js 14](https://nextjs.org/)** - React Framework & Routing
+- **[Phaser 3](https://phaser.io/)** - 2D Game Engine (Arcade Physics)
+- **[TypeScript](https://www.typescriptlang.org/)** - Type Safety
+- **[ZzFX](https://github.com/KilledByAPixel/ZzFX)** - Zuper Zmall Zound Zynth for retro SFX
+- **Orbitron & Rajdhani Fonts** - Cyberpunk typography
 
 ## 📜 License
 
-This project is open-source. Feel free to fork and contribute!
+This project is open-source. Created by **Facu** & **Antigravity**.
