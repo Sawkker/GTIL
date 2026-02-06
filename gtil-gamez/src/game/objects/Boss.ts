@@ -36,6 +36,13 @@ export class Boss extends Enemy {
 
             // Console Debug
             console.log('BOSS SPAWNED: Body Active, Health:', this.health, 'Pos:', x, y);
+
+            // Emit Boss Spawn Event for UI
+            // Using a slight delay to ensure UI is ready or scene is fully set
+            scene.time.delayedCall(100, () => {
+                const maxHealth = 500; // Hardcoded matches internal health
+                scene.events.emit('boss-spawn', { current: this.health, max: maxHealth });
+            });
         } else {
             console.error('BOSS SPAWNED: No Physics Body!');
             scene.physics.add.existing(this); // Try adding again?
@@ -64,6 +71,9 @@ export class Boss extends Enemy {
             this.scene.cameras.main.shake(1000, 0.02);
         } else {
             console.log(`Boss Hit! HP: ${this.health}`);
+            // Emit Health Change
+            const maxHealth = 500;
+            this.scene.events.emit('boss-health-change', { current: this.health, max: maxHealth });
         }
     }
 }

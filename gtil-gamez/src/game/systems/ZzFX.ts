@@ -8,6 +8,15 @@
 
 export class ZzFX {
     private static context: AudioContext | null = null;
+    private static _volume: number = 0.5;
+
+    static get volume(): number {
+        return this._volume;
+    }
+
+    static set volume(v: number) {
+        this._volume = Math.max(0, Math.min(1, v));
+    }
 
     static init() {
         if (!this.context) {
@@ -129,7 +138,7 @@ export class ZzFX {
 
             s = s >= 0 ? s : 0;
 
-            b[length] = v * s * volume; // Final mix
+            b[length] = v * s * volume * this._volume; // Final mix
         }
 
         // Create buffer

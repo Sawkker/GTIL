@@ -59,5 +59,10 @@ export class SoundManager {
         this.scene.events.on('boss-spawn', () => {
             ZzFX.zzfx(1, .05, 60, 0, .5, 2, 2, 1, .1, 0, 0, 0, 0, .8, 0, .1, .5); // Roar
         });
+
+        // Volume Control
+        EventBus.on('set-volume', (vol: number) => {
+            ZzFX.volume = vol;
+        });
     }
 }

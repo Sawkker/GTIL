@@ -16,19 +16,22 @@ export class MainScene extends Scene {
     private pickups!: Phaser.Physics.Arcade.Group;
 
     private mapType: string = 'standard';
+    private charType: string = 'commando';
 
     constructor() {
         super('MainScene');
     }
 
-    init(data: { mapType?: string, enemiesKilled?: number, health?: number, score?: number }) {
+    init(data: { mapType?: string, enemiesKilled?: number, health?: number, score?: number, charType?: string }) {
         this.mapType = data?.mapType || 'standard';
+        this.charType = data?.charType || 'commando';
         this.totalEnemiesKilled = data?.enemiesKilled || 0;
         this.health = data?.health ?? 100;
         this.score = data?.score ?? 0;
 
         console.log('MainScene initialized with:', {
             mapType: this.mapType,
+            charType: this.charType,
             enemiesKilled: this.totalEnemiesKilled,
             health: this.health,
             score: this.score
@@ -132,10 +135,22 @@ export class MainScene extends Scene {
         shotgunAmmo.generateTexture('ammo_shotgun', 20, 20);
 
         // --- PLAYER WEAPON TEXTURES (Procedural with Character Parts) ---
-        // Common Colors
-        const cSkin = 0xffccaa; // Skin
-        const cVest = 0x333333; // Dark Vest
-        const cHair = 0x442200; // Brown Hair
+        // Character Colors based on charType
+        let cSkin = 0xffccaa;
+        let cVest = 0x333333;
+        let cHair = 0x442200;
+
+        if (this.charType === 'spectre') {
+            cSkin = 0xffeecc;
+            cVest = 0x222244; // Dark Blue
+            cHair = 0x222222; // Black
+        } else if (this.charType === 'titan') {
+            cSkin = 0xaa8866;
+            cVest = 0x550000; // Dark Red
+            cHair = 0x666666; // Grey
+        }
+
+        const texturePrefix = `tex_player_${this.charType}`;
 
         // 1. Pistol (Compact)
         const pPistol = this.make.graphics({ x: 0, y: 0 });
@@ -152,7 +167,7 @@ export class MainScene extends Scene {
         // Gun
         pPistol.fillStyle(0x555555);
         pPistol.fillRect(30, 17, 12, 6); // Slide
-        pPistol.generateTexture('tex_player_pistol', 44, 40);
+        pPistol.generateTexture(`${texturePrefix}_pistol`, 44, 40);
 
         // 2. Rifle (Long)
         const pRifle = this.make.graphics({ x: 0, y: 0 });
@@ -171,7 +186,7 @@ export class MainScene extends Scene {
         pRifle.fillRect(28, 18, 30, 4); // Barrel
         pRifle.fillStyle(0x444444);
         pRifle.fillRect(24, 16, 10, 8); // Receiver/Stock
-        pRifle.generateTexture('tex_player_rifle', 64, 40);
+        pRifle.generateTexture(`${texturePrefix}_rifle`, 64, 40);
 
         // 3. Shotgun (Bulkier)
         const pShotgun = this.make.graphics({ x: 0, y: 0 });
@@ -190,7 +205,7 @@ export class MainScene extends Scene {
         pShotgun.fillRect(28, 17, 24, 6); // Barrel
         pShotgun.fillStyle(0x552200); // Wood pump
         pShotgun.fillRect(42, 16, 6, 8);
-        pShotgun.generateTexture('tex_player_shotgun', 60, 40);
+        pShotgun.generateTexture(`${texturePrefix}_shotgun`, 60, 40);
 
         // --- FOOT TEXTURE ---
         const pFoot = this.make.graphics({ x: 0, y: 0 });
@@ -343,6 +358,7 @@ export class MainScene extends Scene {
 
             // Set world bounds to map size
             this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
+            this.physics.world.TILE_BIAS = 48; // Increase bias to prevent tunneling at high speeds
             this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
 
             // Initialize Bullet Group
@@ -359,7 +375,7 @@ export class MainScene extends Scene {
             });
 
             // Initialize Player
-            this.player = new Player(this, this.levelData.playerStart.x, this.levelData.playerStart.y);
+            this.player = new Player(this, this.levelData.playerStart.x, this.levelData.playerStart.y, this.charType);
 
             // Camera Follow
             this.cameras.main.startFollow(this.player, true, 0.09, 0.09);
@@ -436,7 +452,7 @@ export class MainScene extends Scene {
 
                         if (this.health <= 0) {
                             console.log('GAME OVER');
-                            this.scene.start('GameOverScene');
+                            this.scene.start('GameOverScene', { score: this.score, charType: this.charType });
                         }
                     }
                 });
@@ -529,6 +545,7 @@ export class MainScene extends Scene {
                                 // Transition to Boss Map
                                 this.scene.restart({
                                     mapType: 'boss_terrace',
+                                    charType: this.charType,
                                     enemiesKilled: this.totalEnemiesKilled,
                                     health: this.health,
                                     score: this.score
@@ -552,7 +569,7 @@ export class MainScene extends Scene {
 
                     this.cameras.main.fade(2000, 0, 0, 0, false, (camera: any, progress: number) => {
                         if (progress === 1) {
-                            this.scene.start('GameOverScene', { victory: true, score: this.score });
+                            this.scene.start('GameOverScene', { victory: true, score: this.score, charType: this.charType });
                         }
                     });
                 });
@@ -750,7 +767,7 @@ export class MainScene extends Scene {
 
         if (this.health <= 0) {
             console.log('GAME OVER');
-            this.scene.start('GameOverScene');
+            this.scene.start('GameOverScene', { score: this.score, charType: this.charType });
         }
     }
 

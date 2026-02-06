@@ -1,50 +1,49 @@
 import { Scene } from 'phaser';
 import { EventBus } from '../EventBus';
+import { ZzFX } from '../systems/ZzFX';
 
 export class MainMenuScene extends Scene {
     private isStarting: boolean = false;
+    private selectedChar: string = 'commando';
 
     constructor() {
         super('MainMenuScene');
+        this.handleLaunchGame = this.handleLaunchGame.bind(this);
     }
 
     create() {
         console.log('MainMenuScene: create');
 
-        EventBus.emit('update-ui-state', 'CUSTOM_MENU');
+        // Note: GameUI now handles all Menu Logic (Main, Char, Map)
+        // This scene just waits for the 'launch-game' signal
 
-        const { width, height } = this.scale;
+        // Note: GameUI now handles all Menu Logic (Main, Char, Map)
+        // This scene just waits for the 'launch-game' signal
 
-        // Title
-        this.add.text(width / 2, height / 3, 'Select Scene', {
-            fontSize: '64px',
-            color: '#ffffff',
-            fontStyle: 'bold'
-        }).setOrigin(0.5);
+        EventBus.on('launch-game', this.handleLaunchGame);
 
-        // Map Options
-        this.createButton(width / 2, height / 2, 'Standard Map', 'standard');
-        this.createButton(width / 2, height / 2 + 60, 'Dungeon', 'dungeon');
-        this.createButton(width / 2, height / 2 + 120, 'Terrace', 'terrace');
-        this.createButton(width / 2, height / 2 + 180, 'The Bridge (Long)', 'bridge');
+        // Restore Volume Listener so menu volume changes persist
+        EventBus.on('set-volume', (vol: number) => {
+            ZzFX.volume = vol;
+        });
+
+        // Listen for back-to-menu cleanup? 
+        // Actually Scene Manager handles shutdown when we leave.
+        this.events.on('shutdown', this.shutdown, this);
     }
 
-    private createButton(x: number, y: number, label: string, mapType: string) {
-        const text = this.add.text(x, y, label, {
-            fontSize: '32px',
-            color: '#ffffff',
-            backgroundColor: '#333333',
-            padding: { x: 20, y: 10 }
-        })
-            .setOrigin(0.5)
-            .setInteractive({ useHandCursor: true })
-            .on('pointerover', () => text.setStyle({ fill: '#ff0' }))
-            .on('pointerout', () => text.setStyle({ fill: '#fff' }))
-            .on('pointerdown', () => this.startGame(mapType));
+    private handleLaunchGame(data: { charType: string, mapType: string }) {
+        // Safety Check: Ensure scene is valid and active
+        if (!this.sys || !this.sys.settings.active) {
+            console.warn('MainMenuScene: Attempted to launch game from inactive scene state.');
+            return;
+        }
+
+        console.log(`Launching Game: Map=${data.mapType}, Char=${data.charType}`);
+        this.scene.start('MainScene', { mapType: data.mapType, charType: data.charType });
     }
 
-    private startGame(mapType: string) {
-        console.log(`Starting game with map: ${mapType}`);
-        this.scene.start('MainScene', { mapType });
+    shutdown() {
+        EventBus.off('launch-game', this.handleLaunchGame);
     }
 }

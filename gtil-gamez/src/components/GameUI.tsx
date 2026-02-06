@@ -1,14 +1,19 @@
 import { useEffect, useState } from 'react';
 import { EventBus } from '../game/EventBus';
 
-type GameState = 'MENU' | 'PLAYING' | 'GAMEOVER' | 'CUSTOM_MENU';
+type GameState = 'MENU_MAIN' | 'MENU_SETTINGS' | 'MENU_CHAR_SELECT' | 'MENU_MAP_SELECT' | 'PLAYING' | 'GAMEOVER' | 'CUSTOM_MENU';
 
 const GameUI = () => {
-    const [gameState, setGameState] = useState<GameState>('MENU');
+    const [gameState, setGameState] = useState<GameState>('MENU_MAIN');
     const [score, setScore] = useState(0);
     const [health, setHealth] = useState(100);
+    const [highScores, setHighScores] = useState<any[]>([]); // New state for scores
+    const [gameOverData, setGameOverData] = useState<{ score: number, victory: boolean }>({ score: 0, victory: false });
+    const [bossHealth, setBossHealth] = useState<{ current: number, max: number, visible: boolean }>({ current: 0, max: 0, visible: false });
     const [weapon, setWeapon] = useState('Pistol');
     const [ammo, setAmmo] = useState('Inf');
+    const [volume, setVolume] = useState(0.5);
+    const [selectedChar, setSelectedChar] = useState('commando'); // Store char selection
 
     useEffect(() => {
         const handleScoreChange = (newScore: number) => setScore(newScore);
@@ -16,34 +21,77 @@ const GameUI = () => {
         const handleWeaponChange = (newWeapon: string) => setWeapon(newWeapon);
         const handleAmmoChange = (newAmmo: string) => setAmmo(newAmmo);
 
-        const handleStateChange = (newState: GameState, data?: any) => {
-            setGameState(newState);
-            if (newState === 'GAMEOVER' && typeof data === 'number') {
-                setScore(data);
+        const handleUpdateUI = (state: GameState, data?: any) => {
+            setGameState(state);
+            if (state === 'GAMEOVER' && data) {
+                setBossHealth({ ...bossHealth, visible: false }); // Hide boss bar on game over
+                // Handle new data structure
+                if (typeof data === 'object') {
+                    setGameOverData({ score: data.score, victory: data.victory });
+                    if (data.highScores) setHighScores(data.highScores);
+                } else {
+                    setGameOverData({ score: data, victory: false }); // Legacy fallback
+                }
             }
+        };
+
+        const handleBossSpawn = (data: { current: number, max: number }) => {
+            setBossHealth({ current: data.current, max: data.max, visible: true });
+        };
+
+        const handleBossHealthChange = (data: { current: number, max: number }) => {
+            setBossHealth({ current: data.current, max: data.max, visible: true });
+        };
+
+        const handleBossDied = () => {
+            setBossHealth({ ...bossHealth, visible: false });
         };
 
         EventBus.on('score-change', handleScoreChange);
         EventBus.on('health-change', handleHealthChange);
         EventBus.on('weapon-changed', handleWeaponChange);
         EventBus.on('ammo-change', handleAmmoChange);
-        EventBus.on('update-ui-state', handleStateChange);
+        EventBus.on('update-ui-state', handleUpdateUI);
+        EventBus.on('boss-spawn', handleBossSpawn);
+        EventBus.on('boss-health-change', handleBossHealthChange);
+        EventBus.on('boss-died', handleBossDied);
 
         return () => {
             EventBus.off('score-change', handleScoreChange);
             EventBus.off('health-change', handleHealthChange);
             EventBus.off('weapon-changed', handleWeaponChange);
             EventBus.off('ammo-change', handleAmmoChange);
-            EventBus.off('update-ui-state', handleStateChange);
+            EventBus.off('update-ui-state', handleUpdateUI);
+            EventBus.off('boss-spawn', handleBossSpawn);
+            EventBus.off('boss-health-change', handleBossHealthChange);
+            EventBus.off('boss-died', handleBossDied);
         };
     }, []);
 
-    const startGame = () => {
-        EventBus.emit('start-game');
+    const startGame = (charType?: string) => {
+        if (charType) {
+            setSelectedChar(charType);
+            setGameState('MENU_MAP_SELECT'); // Go to Map Select instead of start
+        }
+    };
+
+    const launchGame = (mapType: string) => {
+        // Emit start game with both params
+        EventBus.emit('launch-game', { charType: selectedChar, mapType });
         setGameState('PLAYING');
+
+        // Reset game stats
+        setScore(0);
+        setHealth(100);
+        setWeapon('Pistol');
+        setAmmo('Inf');
+        setGameOverData({ score: 0, victory: false });
+        setHighScores([]);
+        setBossHealth({ current: 0, max: 0, visible: false });
     };
 
     const restartGame = () => {
+        // This is strictly "Retry Mission"
         EventBus.emit('restart-game');
         setGameState('PLAYING');
         setScore(0);
@@ -52,23 +100,133 @@ const GameUI = () => {
         setAmmo('Inf');
     };
 
+    const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const v = parseFloat(e.target.value);
+        setVolume(v);
+        EventBus.emit('set-volume', v);
+    };
+
     if (gameState === 'CUSTOM_MENU') return null;
 
-    if (gameState === 'MENU') {
+    if (gameState === 'MENU_MAIN') {
+        return (
+            <div style={overlayStyle} className="menu-overlay">
+                <h1 style={titleStyle}>GTIL Phaser Shooter</h1>
+                <div style={menuContainerStyle}>
+                    <button onClick={() => {
+                        setGameState('MENU_CHAR_SELECT');
+                        EventBus.emit('back-to-menu'); // Ensure we are in menu scene
+                    }} className="menu-button">PLAY</button>
+                    <button onClick={() => setGameState('MENU_SETTINGS')} className="menu-button">SETTINGS</button>
+                </div>
+            </div>
+        );
+    }
+
+    if (gameState === 'MENU_SETTINGS') {
         return (
             <div style={overlayStyle}>
-                <h1 style={titleStyle}>GTIL Phaser Shooter</h1>
-                <button onClick={startGame} style={buttonStyle}>Start Game</button>
+                <h2 style={subtitleStyle}>SETTINGS</h2>
+                <div style={controlsHintStyle}>
+                    [WASD] Move &nbsp; [Click] Shoot &nbsp; [Q] Switch Weapon &nbsp; [R] Reload &nbsp; [E] Open Door
+                </div>
+                <div style={volumeContainerStyle}>
+                    <label style={volumeLabelStyle}>Volume: {Math.round(volume * 100)}%</label>
+                    <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={volume}
+                        onChange={handleVolumeChange}
+                        style={rangeStyle}
+                    />
+                </div>
+                <button onClick={() => setGameState('MENU_MAIN')} className="menu-button" style={{ marginTop: '40px', fontSize: '20px' }}>BACK</button>
+            </div>
+        );
+    }
+
+    if (gameState === 'MENU_CHAR_SELECT') {
+        // Mock Characters
+        const characters = [
+            { id: 'commando', name: 'Commando', color: '#ffaa00' },
+            { id: 'spectre', name: 'Spectre', color: '#00ccff' },
+            { id: 'titan', name: 'Titan', color: '#ff4444' },
+        ];
+
+        return (
+            <div style={overlayStyle} className="menu-overlay">
+                <h2 style={subtitleStyle}>SELECT CHARACTER</h2>
+                <div style={charSelectContainerStyle}>
+                    {characters.map(char => (
+                        <div key={char.id} className="char-card" onClick={() => startGame(char.id)}>
+                            <div className="char-preview" style={{ ...charPreviewStyle, backgroundColor: char.color }}></div>
+                            <div style={charNameStyle}>{char.name}</div>
+                        </div>
+                    ))}
+                </div>
+                <button onClick={() => setGameState('MENU_MAIN')} className="menu-button" style={{ marginTop: '40px', fontSize: '20px' }}>BACK</button>
+            </div>
+        );
+    }
+
+    if (gameState === 'MENU_MAP_SELECT') {
+        const maps = [
+            { id: 'standard', name: 'Standard Map' },
+            { id: 'dungeon', name: 'Dungeon' },
+            { id: 'terrace', name: 'Terrace' },
+            { id: 'bridge', name: 'The Bridge (Long)' }
+        ];
+
+        return (
+            <div style={overlayStyle} className="menu-overlay">
+                <h2 style={subtitleStyle}>SELECT MAP</h2>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                    {maps.map(map => (
+                        <button
+                            key={map.id}
+                            className="menu-button"
+                            style={{ width: '400px' }}
+                            onClick={() => launchGame(map.id)}
+                        >
+                            {map.name}
+                        </button>
+                    ))}
+                </div>
+                <button onClick={() => setGameState('MENU_CHAR_SELECT')} className="menu-button" style={{ marginTop: '40px', fontSize: '20px', borderColor: '#555', color: '#ccc' }}>BACK</button>
             </div>
         );
     }
 
     if (gameState === 'GAMEOVER') {
         return (
-            <div style={{ ...overlayStyle, backgroundColor: 'rgba(50, 0, 0, 0.9)' }}>
-                <h1 style={{ ...titleStyle, color: '#ff4444' }}>MISSION FAILED</h1>
-                <h2 style={subtitleStyle}>Final Score: {score}</h2>
-                <button onClick={restartGame} style={buttonStyle}>Restart Mission</button>
+            <div style={overlayStyle}>
+                <h1 style={{ ...titleStyle, color: gameOverData.victory ? '#00ff00' : '#ff0000' }}>
+                    {gameOverData.victory ? 'VICTORY' : 'GAME OVER'}
+                </h1>
+                <h2 style={subtitleStyle}>SCORE: {gameOverData.score}</h2>
+
+                <div style={highScoreContainerStyle}>
+                    <h3 style={{ color: '#fff', borderBottom: '1px solid #555', paddingBottom: '10px' }}>HIGH SCORES</h3>
+                    <table style={{ width: '100%', color: '#ddd', fontSize: '14px', textAlign: 'left' }}>
+                        <tbody>
+                            {highScores.map((s, i) => (
+                                <tr key={s.id || i}>
+                                    <td style={{ padding: '5px' }}>{i + 1}.</td>
+                                    <td style={{ padding: '5px' }}>{s.charType.toUpperCase()}</td>
+                                    <td style={{ padding: '5px', textAlign: 'right' }}>{s.score}</td>
+                                    <td style={{ padding: '5px', color: '#888', fontSize: '12px' }}>{s.date}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                <button onClick={() => {
+                    setGameState('MENU_CHAR_SELECT');
+                    EventBus.emit('back-to-menu'); // Force Phaser back to MainMenuScene
+                }} className="menu-button">PLAY AGAIN</button>
             </div>
         );
     }
@@ -126,14 +284,6 @@ const subtitleStyle: React.CSSProperties = {
     fontFamily: 'Rajdhani, sans-serif', fontSize: '32px', margin: '0 0 40px 0', color: '#ccc'
 };
 
-const buttonStyle: React.CSSProperties = {
-    padding: '15px 40px', fontSize: '24px', cursor: 'pointer',
-    backgroundColor: '#00ffff', border: 'none', borderRadius: '4px',
-    color: '#000', fontWeight: 'bold', fontFamily: 'Orbitron, sans-serif',
-    boxShadow: '0 0 15px rgba(0, 255, 255, 0.4)',
-    transition: 'all 0.2s', pointerEvents: 'auto'
-};
-
 const scoreStyle: React.CSSProperties = {
     fontFamily: 'monospace', fontSize: '28px', color: '#ffcc00', fontWeight: 'bold',
     letterSpacing: '2px'
@@ -158,6 +308,97 @@ const weaponStyle: React.CSSProperties = {
 
 const ammoStyle: React.CSSProperties = {
     fontFamily: 'Rajdhani, sans-serif', fontSize: '36px', color: '#fff', fontWeight: 'bold'
+};
+
+
+const volumeContainerStyle: React.CSSProperties = {
+    marginTop: '30px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '10px'
+};
+
+const volumeLabelStyle: React.CSSProperties = {
+    fontFamily: 'Rajdhani, sans-serif',
+    fontSize: '24px',
+    color: '#00ffff'
+};
+
+const rangeStyle: React.CSSProperties = {
+    width: '300px',
+    accentColor: '#00ffff',
+    cursor: 'pointer'
+};
+
+
+const menuContainerStyle: React.CSSProperties = {
+    display: 'flex', flexDirection: 'column', gap: '20px'
+};
+
+const controlsHintStyle: React.CSSProperties = {
+    fontFamily: 'Rajdhani, sans-serif',
+    fontSize: '18px',
+    color: '#888',
+    marginBottom: '20px',
+    textAlign: 'center'
+};
+
+const charSelectContainerStyle: React.CSSProperties = {
+    display: 'flex', gap: '30px', margin: '20px 0'
+};
+
+const charPreviewStyle: React.CSSProperties = {
+    width: '60px', height: '60px', borderRadius: '50%', marginBottom: '20px'
+};
+
+const charNameStyle: React.CSSProperties = {
+    fontFamily: 'Orbitron, sans-serif', color: 'white', fontSize: '18px'
+};
+
+const highScoreContainerStyle: React.CSSProperties = {
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    padding: '20px',
+    borderRadius: '10px',
+    border: '1px solid #444',
+    width: '400px',
+    marginTop: '20px',
+    fontFamily: 'monospace'
+};
+
+const bossHealthContainerStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: '80px', // Below scores which are top-left/right
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: '600px',
+    textAlign: 'center',
+    zIndex: 100
+};
+
+const bossNameStyle: React.CSSProperties = {
+    color: '#ff0000',
+    fontSize: '24px',
+    fontWeight: 'bold',
+    textShadow: '2px 2px 0 #000',
+    marginBottom: '5px',
+    fontFamily: 'Orbitron, sans-serif',
+    letterSpacing: '2px'
+};
+
+const bossHealthBarStyle: React.CSSProperties = {
+    width: '100%',
+    height: '30px',
+    backgroundColor: '#330000',
+    border: '3px solid #000',
+    borderRadius: '4px',
+    overflow: 'hidden'
+};
+
+const bossHealthFillStyle: React.CSSProperties = {
+    height: '100%',
+    backgroundColor: '#ff0000',
+    transition: 'width 0.2s ease-out'
 };
 
 export { GameUI };

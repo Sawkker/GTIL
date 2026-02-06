@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@400;600&display=swap');
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -38,5 +40,86 @@ a {
 @media (prefers-color-scheme: dark) {
   html {
     color-scheme: dark;
+  }
+}
+
+/* --- GAME UI STYLES --- */
+/* --- GAME UI STYLES --- */
+
+.menu-button {
+  padding: 15px 40px;
+  font-size: 24px;
+  cursor: pointer;
+  background-color: transparent;
+  /* outlined style by default */
+  border: 2px solid #00ffff;
+  border-radius: 4px;
+  color: #00ffff;
+  font-weight: bold;
+  font-family: 'Orbitron', sans-serif;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: auto;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  position: relative;
+  overflow: hidden;
+  min-width: 200px;
+}
+
+.menu-button:hover {
+  background-color: #00ffff;
+  color: #000;
+  box-shadow: 0 0 25px rgba(0, 255, 255, 0.8);
+  transform: scale(1.05);
+}
+
+.menu-button:active {
+  transform: scale(0.95);
+}
+
+.char-card {
+  width: 180px;
+  height: 240px;
+  background-color: rgba(0, 0, 0, 0.6);
+  border: 2px solid #555;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(5px);
+}
+
+.char-card:hover {
+  background-color: rgba(30, 30, 30, 0.8);
+  border-color: #00ffff;
+  transform: translateY(-10px);
+  box-shadow: 0 15px 30px rgba(0, 255, 255, 0.2);
+}
+
+.char-card .char-preview {
+  transition: transform 0.3s ease;
+}
+
+.char-card:hover .char-preview {
+  transform: scale(1.2);
+}
+
+.menu-overlay {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
   }
 }

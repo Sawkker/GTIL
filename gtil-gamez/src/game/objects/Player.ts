@@ -14,25 +14,40 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     private torso: Phaser.GameObjects.Sprite;
     private weapons: Weapon[] = [];
     private currentWeaponIndex: number = 0;
+    private charType: string;
 
     // Child parts
     private leftFoot: Phaser.GameObjects.Sprite;
     private rightFoot: Phaser.GameObjects.Sprite;
     private walkTimer: number = 0;
 
-    constructor(scene: Scene, x: number, y: number) {
-        // Parent is invisible container for physics
-        super(scene, x, y, 'tex_foot');
+    constructor(scene: Scene, x: number, y: number, charType: string = 'commando') {
+        // Use the torso texture as the main physics body texture to get correct dimensions
+        // Note: tex_player_X_pistol is approx 44x40
+        const texturePrefix = `tex_player_${charType}`;
+        super(scene, x, y, `${texturePrefix}_pistol`);
+        this.charType = charType;
 
         scene.add.existing(this);
         scene.physics.add.existing(this);
-        this.setVisible(false); // Hide the main physics body sprite (we use children)
+        this.setVisible(false);
 
         this.setCollideWorldBounds(true);
         // Adjust body size
         if (this.body) {
-            this.body.setCircle(12);
-            this.body.setOffset(0, 0); // Reset offset since texture change
+            const radius = 12; // Radius 12 = Diameter 24
+            this.body.setCircle(radius);
+
+            // Now 'this.width' and 'this.height' should be around 44x40 
+            // If generated textures are not ready immediately, we fallback to dimensions of Pistol (44x40)
+            const spriteWidth = this.width || 44;
+            const spriteHeight = this.height || 40;
+
+            // Standard centering offset:
+            const offsetX = (spriteWidth - (radius * 2)) / 2;
+            const offsetY = (spriteHeight - (radius * 2)) / 2;
+
+            this.body.setOffset(offsetX, offsetY);
         }
 
         // FEET (Independent Sprites - Not children of this to avoid rotating with mouse)
@@ -45,7 +60,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         this.rightFoot.setDepth(10);
 
         // TORSO
-        this.torso = scene.add.sprite(x, y, 'tex_player_pistol');
+        // TORSO
+        this.torso = scene.add.sprite(x, y, `${texturePrefix}_pistol`);
         this.torso.setOrigin(0.5, 0.5);
         this.torso.setScale(1);
         this.torso.setDepth(12); // Above feet
@@ -207,12 +223,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         }
 
         const weapon = this.weapons[this.currentWeaponIndex];
-        console.log(`Switched to: ${weapon.name}`);
+        console.log(`Switched to: ${weapon.name} `);
 
         // Update Texture
-        if (weapon.name === 'Pistol') this.torso.setTexture('tex_player_pistol');
-        else if (weapon.name === 'Assault Rifle') this.torso.setTexture('tex_player_rifle');
-        else if (weapon.name === 'Shotgun') this.torso.setTexture('tex_player_shotgun');
+        // Update Texture
+        const texturePrefix = `tex_player_${this.charType}`;
+        if (weapon.name === 'Pistol') this.torso.setTexture(`${texturePrefix}_pistol`);
+        else if (weapon.name === 'Assault Rifle') this.torso.setTexture(`${texturePrefix}_rifle`);
+        else if (weapon.name === 'Shotgun') this.torso.setTexture(`${texturePrefix}_shotgun`);
 
         EventBus.emit('weapon-changed', weapon.name);
         EventBus.emit('ammo-change', weapon.getAmmoStatus());
@@ -232,7 +250,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         const weapon = this.weapons.find(w => w.name === nameMatch);
         if (weapon) {
             weapon.addAmmo(pickup.ammo);
-            console.log(`Picked up ${nameMatch} ammo: ${pickup.ammo}`);
+            console.log(`Picked up ${nameMatch} ammo: ${pickup.ammo} `);
 
             // If it's the current weapon, update UI
             if (this.getCurrentWeaponName() === nameMatch) {
