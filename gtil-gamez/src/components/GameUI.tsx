@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { EventBus } from '../game/EventBus';
+import { SettingsManager, GameSettings } from '../game/systems/SettingsManager';
+import { STORY_LEVELS, StoryLevel } from '../game/data/StoryData';
 
-type GameState = 'MENU_MAIN' | 'MENU_SETTINGS' | 'MENU_CHAR_SELECT' | 'MENU_MAP_SELECT' | 'PLAYING' | 'GAMEOVER' | 'CUSTOM_MENU';
+type GameState = 'MENU_MAIN' | 'MENU_SETTINGS' | 'MENU_CHAR_SELECT' | 'MENU_MAP_SELECT' | 'MENU_BRIEFING' | 'PLAYING' | 'GAMEOVER' | 'CUSTOM_MENU';
 
 const GameUI = () => {
     const [gameState, setGameState] = useState<GameState>('MENU_MAIN');
@@ -12,8 +14,19 @@ const GameUI = () => {
     const [bossHealth, setBossHealth] = useState<{ current: number, max: number, visible: boolean }>({ current: 0, max: 0, visible: false });
     const [weapon, setWeapon] = useState('Pistol');
     const [ammo, setAmmo] = useState('Inf');
-    const [volume, setVolume] = useState(0.5);
+    const [volume, setVolume] = useState(SettingsManager.get().volume);
     const [selectedChar, setSelectedChar] = useState('commando'); // Store char selection
+    const [settings, setSettings] = useState(SettingsManager.get()); // Local settings state
+
+    // Story Mode State
+    const [currentLevelId, setCurrentLevelId] = useState<number | null>(null);
+    const [currentStoryLevel, setCurrentStoryLevel] = useState<StoryLevel | null>(null);
+    const [dialogue, setDialogue] = useState<string | null>(null);
+
+    const handleWeaponToggle = (w: keyof GameSettings['allowedWeapons'], checked: boolean) => {
+        SettingsManager.setWeaponAllowed(w, checked);
+        setSettings({ ...SettingsManager.get() }); // Force update
+    };
 
     useEffect(() => {
         const handleScoreChange = (newScore: number) => setScore(newScore);
@@ -21,8 +34,38 @@ const GameUI = () => {
         const handleWeaponChange = (newWeapon: string) => setWeapon(newWeapon);
         const handleAmmoChange = (newAmmo: string) => setAmmo(newAmmo);
 
+
+
         const handleUpdateUI = (state: GameState, data?: any) => {
+            if (state === 'GAMEOVER' && data) {
+                setBossHealth({ ...bossHealth, visible: false });
+
+                // Check for Story Mode Victory
+                if (currentLevelId && data.victory) {
+                    // Player won a story level
+                    const level = STORY_LEVELS.find(l => l.id === currentLevelId);
+                    if (level && level.nextLevelId) {
+                        // Proceed to next level
+                        const nextLevel = STORY_LEVELS.find(l => l.id === level.nextLevelId);
+                        if (nextLevel) {
+                            setCurrentLevelId(nextLevel.id);
+                            setCurrentStoryLevel(nextLevel);
+                            setGameState('MENU_BRIEFING');
+                            return; // Stop here, don't go to GAMEOVER screen
+                        }
+                    } else if (level && !level.nextLevelId) {
+                        // Campaign Finished!
+                        // Show Victory Game Over with special message?
+                        // For now fall through to standard Game Over but maybe add a "Campaign Complete" flag?
+                    }
+                } else if (currentLevelId && !data.victory) {
+                    // Failed Story Level
+                    // Just show Game Over as usual, maybe "Try Again" restarts level?
+                }
+            }
+
             setGameState(state);
+
             if (state === 'GAMEOVER' && data) {
                 setBossHealth({ ...bossHealth, visible: false }); // Hide boss bar on game over
                 // Handle new data structure
@@ -56,6 +99,9 @@ const GameUI = () => {
         EventBus.on('boss-health-change', handleBossHealthChange);
         EventBus.on('boss-died', handleBossDied);
 
+        EventBus.on('show-dialogue', (text: string) => setDialogue(text));
+        EventBus.on('hide-dialogue', () => setDialogue(null));
+
         return () => {
             EventBus.off('score-change', handleScoreChange);
             EventBus.off('health-change', handleHealthChange);
@@ -72,6 +118,15 @@ const GameUI = () => {
         if (charType) {
             setSelectedChar(charType);
             setGameState('MENU_MAP_SELECT'); // Go to Map Select instead of start
+        }
+    };
+
+    const startStoryMode = () => {
+        setCurrentLevelId(1);
+        const level = STORY_LEVELS.find(l => l.id === 1);
+        if (level) {
+            setCurrentStoryLevel(level);
+            setGameState('MENU_BRIEFING');
         }
     };
 
@@ -103,6 +158,7 @@ const GameUI = () => {
     const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const v = parseFloat(e.target.value);
         setVolume(v);
+        SettingsManager.setVolume(v);
         EventBus.emit('set-volume', v);
     };
 
@@ -111,13 +167,19 @@ const GameUI = () => {
     if (gameState === 'MENU_MAIN') {
         return (
             <div style={overlayStyle} className="menu-overlay">
-                <h1 style={titleStyle}>GTIL Phaser Shooter</h1>
+                <h1 style={titleStyle}>Batalla de San Lorenzo</h1>
                 <div style={menuContainerStyle}>
+                    <div style={{ color: '#aaa', fontSize: '14px', marginBottom: '10px' }}>3 de Febrero de 1813</div>
                     <button onClick={() => {
                         setGameState('MENU_CHAR_SELECT');
-                        EventBus.emit('back-to-menu'); // Ensure we are in menu scene
-                    }} className="menu-button">PLAY</button>
-                    <button onClick={() => setGameState('MENU_SETTINGS')} className="menu-button">SETTINGS</button>
+                        setCurrentLevelId(null); // Ensure standard mode
+                        EventBus.emit('back-to-menu');
+                    }} className="menu-button">JUGAR (ARCADE)</button>
+                    <button onClick={() => {
+                        startStoryMode();
+                        EventBus.emit('back-to-menu');
+                    }} className="menu-button" style={{ borderColor: '#d4af37', color: '#d4af37' }}>MODO HISTORIA</button>
+                    <button onClick={() => setGameState('MENU_SETTINGS')} className="menu-button">OPCIONES</button>
                 </div>
             </div>
         );
@@ -142,7 +204,49 @@ const GameUI = () => {
                         style={rangeStyle}
                     />
                 </div>
-                <button onClick={() => setGameState('MENU_MAIN')} className="menu-button" style={{ marginTop: '40px', fontSize: '20px' }}>BACK</button>
+
+                <div style={{ marginTop: '20px', textAlign: 'center' }}>
+                    <h3 style={{ color: '#ccc', marginBottom: '10px' }}>WEAPONS ALLOWED</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                        {(['pistol', 'rifle', 'shotgun', 'sable'] as const).map(w => (
+                            <label key={w} style={{ display: 'flex', justifyContent: 'space-between', width: '200px', margin: '0 auto', color: '#fff', fontSize: '18px' }}>
+                                {w.toUpperCase()}
+                                <input
+                                    type="checkbox"
+                                    checked={settings.allowedWeapons[w]}
+                                    onChange={(e) => handleWeaponToggle(w, e.target.checked)}
+                                    style={{ transform: 'scale(1.5)', accentColor: '#00ffff' }}
+                                />
+                            </label>
+                        ))}
+                    </div>
+                </div>
+                <button onClick={() => setGameState('MENU_MAIN')} className="menu-button" style={{ marginTop: '40px', fontSize: '20px' }}>VOLVER</button>
+            </div>
+        );
+    }
+
+    if (gameState === 'MENU_BRIEFING' && currentStoryLevel) {
+        return (
+            <div style={overlayStyle}>
+                <div style={{ ...panelStyle, width: '800px', alignItems: 'center', backgroundColor: 'rgba(10, 5, 0, 0.95)', border: '4px double #d4af37' }}>
+                    <h2 style={{ ...titleStyle, fontSize: '42px', marginBottom: '10px' }}>{currentStoryLevel.title}</h2>
+                    <h3 style={{ ...subtitleStyle, fontSize: '24px', marginBottom: '30px', color: '#8a7018' }}>{currentStoryLevel.date}</h3>
+
+                    <div style={{ textAlign: 'center', fontFamily: 'Crimson Text, serif', fontSize: '24px', lineHeight: '1.6', color: '#f0e6d2', marginBottom: '40px', fontStyle: 'italic' }}>
+                        {currentStoryLevel.briefing.map((line, i) => (
+                            <p key={i} style={{ marginBottom: '15px' }}>{line}</p>
+                        ))}
+                    </div>
+
+                    <button
+                        onClick={() => launchGame(currentStoryLevel.mapType)}
+                        className="menu-button"
+                        style={{ fontSize: '28px', padding: '20px 60px' }}
+                    >
+                        COMENZAR BATALLA
+                    </button>
+                </div>
             </div>
         );
     }
@@ -150,9 +254,9 @@ const GameUI = () => {
     if (gameState === 'MENU_CHAR_SELECT') {
         // Mock Characters
         const characters = [
-            { id: 'commando', name: 'Commando', color: '#ffaa00' },
-            { id: 'spectre', name: 'Spectre', color: '#00ccff' },
-            { id: 'titan', name: 'Titan', color: '#ff4444' },
+            { id: 'commando', name: 'Granadero', color: '#0000AA' },
+            { id: 'spectre', name: 'Oficial', color: '#4444FF' },
+            { id: 'titan', name: 'Sargento', color: '#AA0000' },
         ];
 
         return (
@@ -173,10 +277,10 @@ const GameUI = () => {
 
     if (gameState === 'MENU_MAP_SELECT') {
         const maps = [
-            { id: 'standard', name: 'Standard Map' },
-            { id: 'dungeon', name: 'Dungeon' },
-            { id: 'terrace', name: 'Terrace' },
-            { id: 'bridge', name: 'The Bridge (Long)' }
+            { id: 'standard', name: 'Campo de Batalla' },
+            { id: 'dungeon', name: 'Claustro del Convento' },
+            { id: 'terrace', name: 'Muros del Convento' },
+            { id: 'bridge', name: 'Barrancas del Río' }
         ];
 
         return (
@@ -248,6 +352,36 @@ const GameUI = () => {
                 <div style={weaponStyle}>{weapon.toUpperCase()}</div>
                 <div style={ammoStyle}>{ammo}</div>
             </div>
+            {/* In-Game Dialogue Overlay */}
+            {dialogue && (
+                <div style={{
+                    position: 'absolute',
+                    bottom: '100px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: '600px',
+                    backgroundColor: 'rgba(20, 15, 10, 0.95)',
+                    border: '2px solid #d4af37',
+                    boxShadow: '0 0 15px rgba(212, 175, 55, 0.3)',
+                    padding: '20px',
+                    borderRadius: '8px',
+                    color: '#f0e6d2',
+                    fontFamily: '"Crimson Text", serif',
+                    fontSize: '22px',
+                    textAlign: 'center',
+                    pointerEvents: 'none',
+                    zIndex: 1000
+                }}>
+                    <div style={{
+                        fontSize: '16px',
+                        color: '#8a7018',
+                        marginBottom: '5px',
+                        textTransform: 'uppercase',
+                        letterSpacing: '1px'
+                    }}>Diario de Guerra</div>
+                    {dialogue}
+                </div>
+            )}
         </div>
     );
 };
@@ -256,8 +390,8 @@ const GameUI = () => {
 const overlayStyle: React.CSSProperties = {
     position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: 'rgba(10, 10, 20, 0.85)', color: 'white', pointerEvents: 'auto',
-    backdropFilter: 'blur(5px)'
+    backgroundColor: 'rgba(10, 5, 0, 0.85)', color: '#f0e6d2', pointerEvents: 'auto',
+    backdropFilter: 'blur(2px)' // Less blur, more dark overlay
 };
 
 const hudContainerStyle: React.CSSProperties = {
@@ -267,31 +401,33 @@ const hudContainerStyle: React.CSSProperties = {
 
 const panelStyle: React.CSSProperties = {
     position: 'absolute', top: 20, left: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    backdropFilter: 'blur(4px)',
+    backgroundColor: 'rgba(20, 10, 5, 0.8)',
     padding: '15px 25px',
-    borderRadius: '8px',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-    display: 'flex', flexDirection: 'column', gap: '5px'
+    borderRadius: '2px',
+    border: '2px solid #8a7018', // Gold Dim
+    display: 'flex', flexDirection: 'column', gap: '5px',
+    boxShadow: '0 4px 10px rgba(0,0,0,0.5)'
 };
 
 const titleStyle: React.CSSProperties = {
-    fontFamily: 'Orbitron, sans-serif', fontSize: '48px', margin: '0 0 40px 0',
-    color: '#00ffff', textShadow: '0 0 20px rgba(0, 255, 255, 0.5)'
+    fontFamily: 'Cinzel, serif', fontSize: '56px', margin: '0 0 40px 0',
+    color: '#d4af37', textShadow: '2px 2px 4px black', letterSpacing: '4px',
+    borderBottom: '2px solid #8a7018', paddingBottom: '10px'
 };
 
 const subtitleStyle: React.CSSProperties = {
-    fontFamily: 'Rajdhani, sans-serif', fontSize: '32px', margin: '0 0 40px 0', color: '#ccc'
+    fontFamily: 'Cinzel, serif', fontSize: '36px', margin: '0 0 40px 0', color: '#e0d0b0',
+    textShadow: '1px 1px 2px black'
 };
 
 const scoreStyle: React.CSSProperties = {
-    fontFamily: 'monospace', fontSize: '28px', color: '#ffcc00', fontWeight: 'bold',
-    letterSpacing: '2px'
+    fontFamily: 'Crimson Text, serif', fontSize: '32px', color: '#d4af37', fontWeight: 'bold',
+    letterSpacing: '1px'
 };
 
 const healthContainerStyle: React.CSSProperties = {
-    width: '200px', height: '10px', backgroundColor: '#333', borderRadius: '5px',
-    overflow: 'hidden', marginTop: '5px'
+    width: '200px', height: '12px', backgroundColor: '#221111', borderRadius: '2px',
+    overflow: 'hidden', marginTop: '5px', border: '1px solid #553333'
 };
 
 const healthBarStyle: React.CSSProperties = {
@@ -299,15 +435,16 @@ const healthBarStyle: React.CSSProperties = {
 };
 
 const healthTextStyle: React.CSSProperties = {
-    fontFamily: 'Rajdhani, sans-serif', fontSize: '14px', color: '#aaa', marginTop: '2px'
+    fontFamily: 'Cinzel, serif', fontSize: '14px', color: '#aaaaaa', marginTop: '4px'
 };
 
 const weaponStyle: React.CSSProperties = {
-    fontFamily: 'Orbitron, sans-serif', fontSize: '20px', color: '#00ffff', letterSpacing: '1px'
+    fontFamily: 'Cinzel, serif', fontSize: '24px', color: '#fff', letterSpacing: '1px',
+    textShadow: '1px 1px 2px black'
 };
 
 const ammoStyle: React.CSSProperties = {
-    fontFamily: 'Rajdhani, sans-serif', fontSize: '36px', color: '#fff', fontWeight: 'bold'
+    fontFamily: 'Crimson Text, serif', fontSize: '40px', color: '#d4af37', fontWeight: 'bold'
 };
 
 
@@ -320,50 +457,53 @@ const volumeContainerStyle: React.CSSProperties = {
 };
 
 const volumeLabelStyle: React.CSSProperties = {
-    fontFamily: 'Rajdhani, sans-serif',
+    fontFamily: 'Cinzel, serif',
     fontSize: '24px',
-    color: '#00ffff'
+    color: '#d4af37'
 };
 
 const rangeStyle: React.CSSProperties = {
     width: '300px',
-    accentColor: '#00ffff',
+    accentColor: '#d4af37',
     cursor: 'pointer'
 };
 
 
 const menuContainerStyle: React.CSSProperties = {
-    display: 'flex', flexDirection: 'column', gap: '20px'
+    display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center'
 };
 
 const controlsHintStyle: React.CSSProperties = {
-    fontFamily: 'Rajdhani, sans-serif',
-    fontSize: '18px',
-    color: '#888',
+    fontFamily: 'Crimson Text, serif',
+    fontSize: '20px',
+    color: '#aaa',
     marginBottom: '20px',
-    textAlign: 'center'
+    textAlign: 'center',
+    fontStyle: 'italic'
 };
 
 const charSelectContainerStyle: React.CSSProperties = {
-    display: 'flex', gap: '30px', margin: '20px 0'
+    display: 'flex', gap: '40px', margin: '20px 0'
 };
 
 const charPreviewStyle: React.CSSProperties = {
-    width: '60px', height: '60px', borderRadius: '50%', marginBottom: '20px'
+    width: '80px', height: '80px', borderRadius: '50%', marginBottom: '20px',
+    border: '2px solid #d4af37', boxShadow: '0 0 10px rgba(0,0,0,0.5)'
 };
 
 const charNameStyle: React.CSSProperties = {
-    fontFamily: 'Orbitron, sans-serif', color: 'white', fontSize: '18px'
+    fontFamily: 'Cinzel, serif', color: '#d4af37', fontSize: '20px', fontWeight: 'bold',
+    marginTop: '10px'
 };
 
 const highScoreContainerStyle: React.CSSProperties = {
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    backgroundColor: 'rgba(10, 5, 0, 0.9)',
     padding: '20px',
-    borderRadius: '10px',
-    border: '1px solid #444',
-    width: '400px',
+    borderRadius: '4px',
+    border: '2px solid #8a7018',
+    width: '500px',
     marginTop: '20px',
-    fontFamily: 'monospace'
+    fontFamily: 'Crimson Text, serif'
 };
 
 const bossHealthContainerStyle: React.CSSProperties = {
@@ -377,27 +517,27 @@ const bossHealthContainerStyle: React.CSSProperties = {
 };
 
 const bossNameStyle: React.CSSProperties = {
-    color: '#ff0000',
-    fontSize: '24px',
+    color: '#800000',
+    fontSize: '32px',
     fontWeight: 'bold',
     textShadow: '2px 2px 0 #000',
     marginBottom: '5px',
-    fontFamily: 'Orbitron, sans-serif',
+    fontFamily: 'Cinzel, serif',
     letterSpacing: '2px'
 };
 
 const bossHealthBarStyle: React.CSSProperties = {
     width: '100%',
-    height: '30px',
+    height: '20px',
     backgroundColor: '#330000',
-    border: '3px solid #000',
-    borderRadius: '4px',
+    border: '2px solid #5a3a22',
+    borderRadius: '2px',
     overflow: 'hidden'
 };
 
 const bossHealthFillStyle: React.CSSProperties = {
     height: '100%',
-    backgroundColor: '#ff0000',
+    backgroundColor: '#cc0000',
     transition: 'width 0.2s ease-out'
 };
 

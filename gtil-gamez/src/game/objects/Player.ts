@@ -4,8 +4,10 @@ import { Scene } from 'phaser';
 // ... (inside class methods)
 
 
+import { Utils } from 'phaser';
+import { SettingsManager } from '../systems/SettingsManager';
 import { Weapon } from './weapons/Weapon';
-import { Pistol, Rifle, Shotgun } from './weapons/Weapons';
+import { Pistol, Rifle, Shotgun, Sable } from './weapons/Weapons';
 import { WeaponPickup } from './WeaponPickup';
 
 
@@ -67,9 +69,18 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         this.torso.setDepth(12); // Above feet
 
         // Initialize Weapons
-        this.weapons.push(new Pistol(scene));
-        this.weapons.push(new Rifle(scene));
-        this.weapons.push(new Shotgun(scene));
+        // Initialize Weapons based on Settings
+        const settings = SettingsManager.get();
+        if (settings.allowedWeapons.pistol) this.weapons.push(new Pistol(scene));
+        if (settings.allowedWeapons.rifle) this.weapons.push(new Rifle(scene));
+        if (settings.allowedWeapons.shotgun) this.weapons.push(new Shotgun(scene));
+        if (settings.allowedWeapons.sable) this.weapons.push(new Sable(scene));
+
+        // Fallback: If no weapons allowed, force Pistol or Sable
+        if (this.weapons.length === 0) {
+            this.weapons.push(new Sable(scene)); // Melee only!
+        }
+
         this.currentWeaponIndex = 0;
     }
 
@@ -151,8 +162,20 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
             this.stop();
         }
 
-        // SYNC TORSO POSITION
-        this.torso.setPosition(this.x, this.y);
+        // MICROMOVEMENTS (Breathing / Walking Bob)
+        const time = this.scene.time.now;
+        let bobOffset = 0;
+
+        if (this.body.velocity.x !== 0 || this.body.velocity.y !== 0) {
+            // WALKING: Fast Bob
+            bobOffset = Math.sin(time * 0.02) * 2;
+        } else {
+            // IDLE: Slow Breathing
+            bobOffset = Math.sin(time * 0.003) * 1;
+        }
+
+        // SYNC TORSO POSITION with Offset
+        this.torso.setPosition(this.x, this.y + bobOffset);
     }
 
     setRotationToPointer(pointer: Phaser.Input.Pointer) {
@@ -231,6 +254,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         if (weapon.name === 'Pistol') this.torso.setTexture(`${texturePrefix}_pistol`);
         else if (weapon.name === 'Assault Rifle') this.torso.setTexture(`${texturePrefix}_rifle`);
         else if (weapon.name === 'Shotgun') this.torso.setTexture(`${texturePrefix}_shotgun`);
+        else if (weapon.name === 'Sable') this.torso.setTexture(`${texturePrefix}_sable`);
 
         EventBus.emit('weapon-changed', weapon.name);
         EventBus.emit('ammo-change', weapon.getAmmoStatus());

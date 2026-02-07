@@ -24,7 +24,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     public roomId: number = -1; // -1 = corridor/unknown
 
     constructor(scene: Scene, x: number, y: number, target: Player, pathfinding: PathfindingManager, wallsLayer: Phaser.Tilemaps.TilemapLayer) {
-        super(scene, x, y, 'enemy'); // Texture created in MainScene or loaded
+        super(scene, x, y, 'tex_enemy'); // Procedural texture
         this.target = target;
         this.pathfinding = pathfinding;
         this.wallsLayer = wallsLayer;
@@ -33,7 +33,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         scene.physics.add.existing(this);
 
         this.setCollideWorldBounds(true);
-        this.setScale(0.15);
+        this.setScale(0.9); // Increased from 0.15 to match Player size
 
         // RANDOM ENEMY VARIANT
         const rand = Math.random();
@@ -41,13 +41,15 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
             // RUNNER: Fast, Low HP
             this.speed = 180;
             this.health = 2;
-            this.setTint(0x0000ff); // Blue
+            // this.setTint(0x0000ff); // BLUE - Disabled to keep Red Coat visible
+            this.setAlpha(0.9);
         } else if (rand < 0.4) {
             // TANK: Slow, High HP
             this.speed = 50;
             this.health = 6;
-            this.setScale(0.2); // Bigger
-            this.setTint(0x00ff00); // Green
+            this.setScale(1.1); // Bigger than normal
+            // this.setTint(0x00ff00); // Green
+            this.setTint(0x888888); // Darker to show "Tankiness"
         } else {
             // NORMAL
             this.speed = 100;

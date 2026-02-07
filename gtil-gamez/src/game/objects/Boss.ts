@@ -8,12 +8,12 @@ export class Boss extends Enemy {
         super(scene, x, y, target, pathfinding, wallsLayer);
 
         // Override properties
-        this.setTexture('final_boss');
-        this.setScale(1.0);
+        this.setTexture('tex_boss_zabala');
+        this.setScale(1.2); // Sligthly larger than player
 
         // Stats (Using protected fields)
-        this.health = 500;
-        this.speed = 80;
+        this.health = 1000; // Stronger
+        this.speed = 90;
 
         // Ensure Physics Body is ready
         if (this.body) {
@@ -75,5 +75,34 @@ export class Boss extends Enemy {
             const maxHealth = 500;
             this.scene.events.emit('boss-health-change', { current: this.health, max: maxHealth });
         }
+    }
+
+    private lastSpawnTime: number = 0;
+
+    preUpdate(time: number, delta: number) {
+        super.preUpdate(time, delta);
+
+        // Minion Spawning Logic (Every 8 seconds)
+        if (time > this.lastSpawnTime + 8000) {
+            this.lastSpawnTime = time;
+            this.spawnMinions();
+        }
+    }
+
+    spawnMinions() {
+        if (!this.scene) return;
+
+        // Spawn 2 minions near the boss
+        for (let i = 0; i < 2; i++) {
+            const offsetX = (Math.random() - 0.5) * 100;
+            const offsetY = (Math.random() - 0.5) * 100;
+
+            // We need access to MainScene's methods or just emit an event
+            // Emitting event is safer to avoid circular dependencies or tight coupling
+            this.scene.events.emit('spawn-minion', this.x + offsetX, this.y + offsetY);
+        }
+        // Text/Shout
+        this.scene.events.emit('show-dialogue', "Zabala: ¡A mí, soldados! ¡Aplastadlos!");
+        this.scene.time.delayedCall(2000, () => this.scene.events.emit('hide-dialogue'));
     }
 }

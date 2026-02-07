@@ -37,6 +37,9 @@ export class GameOverScene extends Scene {
         // Listen for restart from React UI
         EventBus.on('restart-game', this.restartGame, this);
         EventBus.on('back-to-menu', this.backToMenu, this);
+
+        // Register cleanup
+        this.events.once('shutdown', this.shutdown, this);
     }
 
     restartGame() {
@@ -48,7 +51,7 @@ export class GameOverScene extends Scene {
     }
 
     shutdown() {
-        EventBus.off('restart-game');
-        EventBus.off('back-to-menu');
+        EventBus.off('restart-game', this.restartGame);
+        EventBus.off('back-to-menu', this.backToMenu);
     }
 }

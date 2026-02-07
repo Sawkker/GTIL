@@ -1,27 +1,48 @@
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:wght@400;600&display=swap');
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #1a1510;
+  /* Dark Wood / Night */
+  --foreground: #f0e6d2;
+  /* Parchment */
+  --gold: #d4af37;
+  --gold-dim: #8a7018;
+  --parchment: #f0e6d2;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0f0a05;
+    --foreground: #e0d0b0;
   }
 }
 
 html,
 body {
-  max-width: 100vw;
-  overflow-x: hidden;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+}
+
+#game-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Crimson Text', serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -37,53 +58,48 @@ a {
   text-decoration: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
-}
-
-/* --- GAME UI STYLES --- */
 /* --- GAME UI STYLES --- */
 
 .menu-button {
   padding: 15px 40px;
   font-size: 24px;
   cursor: pointer;
-  background-color: transparent;
-  /* outlined style by default */
-  border: 2px solid #00ffff;
-  border-radius: 4px;
-  color: #00ffff;
+  background-color: rgba(20, 10, 5, 0.8);
+  /* Historical Button Style */
+  border: 2px solid var(--gold);
+  border-radius: 2px;
+  color: var(--gold);
   font-weight: bold;
-  font-family: 'Orbitron', sans-serif;
-  box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: 'Cinzel', serif;
+  box-shadow: 0 0 15px rgba(212, 175, 55, 0.1), inset 0 0 20px rgba(0, 0, 0, 0.8);
+  transition: all 0.3s ease;
   pointer-events: auto;
   text-transform: uppercase;
   letter-spacing: 2px;
   position: relative;
   overflow: hidden;
   min-width: 200px;
+  text-shadow: 1px 1px 2px black;
 }
 
 .menu-button:hover {
-  background-color: #00ffff;
-  color: #000;
-  box-shadow: 0 0 25px rgba(0, 255, 255, 0.8);
-  transform: scale(1.05);
+  background-color: rgba(212, 175, 55, 0.2);
+  color: #fff;
+  border-color: #fff;
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.4);
+  transform: translateY(-2px);
 }
 
 .menu-button:active {
-  transform: scale(0.95);
+  transform: translateY(1px);
 }
 
 .char-card {
   width: 180px;
-  height: 240px;
-  background-color: rgba(0, 0, 0, 0.6);
-  border: 2px solid #555;
-  border-radius: 10px;
+  height: 260px;
+  background-color: rgba(10, 5, 0, 0.8);
+  border: 3px double var(--gold-dim);
+  border-radius: 4px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -92,14 +108,14 @@ a {
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
-  backdrop-filter: blur(5px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
 }
 
 .char-card:hover {
-  background-color: rgba(30, 30, 30, 0.8);
-  border-color: #00ffff;
-  transform: translateY(-10px);
-  box-shadow: 0 15px 30px rgba(0, 255, 255, 0.2);
+  background-color: rgba(30, 20, 10, 0.9);
+  border-color: var(--gold);
+  transform: translateY(-5px);
+  box-shadow: 0 15px 30px rgba(212, 175, 55, 0.15);
 }
 
 .char-card .char-preview {

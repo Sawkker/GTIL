@@ -23,13 +23,15 @@ export class MainMenuScene extends Scene {
         EventBus.on('launch-game', this.handleLaunchGame);
 
         // Restore Volume Listener so menu volume changes persist
-        EventBus.on('set-volume', (vol: number) => {
-            ZzFX.volume = vol;
-        });
+        EventBus.on('set-volume', this.handleSetVolume);
 
         // Listen for back-to-menu cleanup? 
         // Actually Scene Manager handles shutdown when we leave.
         this.events.on('shutdown', this.shutdown, this);
+    }
+
+    private handleSetVolume(vol: number) {
+        ZzFX.volume = vol;
     }
 
     private handleLaunchGame(data: { charType: string, mapType: string }) {
@@ -45,5 +47,6 @@ export class MainMenuScene extends Scene {
 
     shutdown() {
         EventBus.off('launch-game', this.handleLaunchGame);
+        EventBus.off('set-volume', this.handleSetVolume);
     }
 }

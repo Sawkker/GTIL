@@ -16,14 +16,26 @@ export class SoundManager {
             ZzFX.init();
         });
 
+        // Volume Control Handler
+        const volumeHandler = (v: number) => {
+            ZzFX.volume = v;
+        };
+        EventBus.on('set-volume', volumeHandler);
+
+        // Initialize volume from settings
+        const settings = localStorage.getItem('gtil_settings_v1');
+        if (settings) {
+            const parsed = JSON.parse(settings);
+            if (parsed.volume !== undefined) {
+                ZzFX.volume = parsed.volume;
+            }
+        }
+
         // Weapon Shoot
         this.scene.events.on('weapon-shoot', (weaponType: string) => {
-            // Distinct sounds per weapon?
-            // For now, varying pitch slightly could work, or just one nice shoot sound.
-            // ZzFX params: [vol, rand, freq, ...]
-            if (weaponType === 'handgun') ZzFX.zzfx(1, .05, 300, 0, .05, .1, 1, 1, -0.1); // Pew
-            if (weaponType === 'rifle') ZzFX.zzfx(.8, .05, 400, 0, .03, .08, 2, 1, -0.1); // Rat-tat
-            if (weaponType === 'shotgun') ZzFX.zzfx(1.2, .05, 150, 0, .1, .3, 3, 1, -0.5, .1, 0, 0, 0, 1.5); // Boom
+            if (weaponType === 'handgun') ZzFX.zzfx(1, .05, 300, 0, .05, .1, 1, 1, -0.1);
+            if (weaponType === 'rifle') ZzFX.zzfx(.8, .05, 400, 0, .03, .08, 2, 1, -0.1);
+            if (weaponType === 'shotgun') ZzFX.zzfx(1.2, .05, 150, 0, .1, .3, 3, 1, -0.5, .1, 0, 0, 0, 1.5);
         });
 
         // Enemy Hit
@@ -33,16 +45,19 @@ export class SoundManager {
 
         // Enemy Died
         this.scene.events.on('enemy-died', () => {
-            ZzFX.zzfx(1, .05, 100, 0, .1, .2, 3, 1, -0.1, 0, 0, 0, 0, 1.1); // Crunch/Splat
+            ZzFX.zzfx(1, .05, 100, 0, .1, .2, 3, 1, -0.1, 0, 0, 0, 0, 1.1);
         });
 
-        // Player Hit
-        EventBus.on('health-change', (health: number) => {
-            // We don't know previous health easily here without state, 
-            // but MainScene emits this on damage. 
-            // Ideally we want to distinguish damage from healing.
-            // But usually this event fires on damage in our current code.
-            ZzFX.zzfx(1, .05, 150, .05, .1, .3, 2, 1, -.1, 0, 0, 0, 0, .5); // Ouch
+        // Player Hit Handler
+        const healthHandler = (health: number) => {
+            ZzFX.zzfx(1, .05, 150, .05, .1, .3, 2, 1, -.1, 0, 0, 0, 0, .5);
+        };
+        EventBus.on('health-change', healthHandler);
+
+        // CLEANUP
+        this.scene.events.once('shutdown', () => {
+            EventBus.off('set-volume', volumeHandler);
+            EventBus.off('health-change', healthHandler);
         });
 
         // Pickup

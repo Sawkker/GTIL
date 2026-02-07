@@ -133,29 +133,43 @@ export class MapGenerator {
         enemySpawns.push({ x: (room2.x + room2.w - 2) * 32, y: (room2.y + room2.h - 2) * 32 });
         enemySpawns.push({ x: (room2.x + 2) * 32, y: (room2.y + room2.h - 2) * 32 });
 
-        furniture.push({ x: (room1.x + 2) * 32, y: (room1.y + 2) * 32, type: 'sofa' });
-        furniture.push({ x: (room1.x + 5) * 32, y: (room1.y + 5) * 32, type: 'table' });
-        furniture.push({ x: (room2.x + room2.w - 3) * 32, y: (room2.y + 2) * 32, type: 'bed' });
+        // Props Placement
+        // Room 1 (Grass/Garden): Add Trees
+        if (room1.floorType === 0) {
+            furniture.push({ x: (room1.x + 2) * 32, y: (room1.y + 2) * 32, type: 'tree' });
+            furniture.push({ x: (room1.x + room1.w - 3) * 32, y: (room1.y + room1.h - 3) * 32, type: 'tree' });
+        }
+
+        // Room 2 (Interior): Add Crates
+        furniture.push({ x: (room2.x + 2) * 32, y: (room2.y + 2) * 32, type: 'crate' });
+        furniture.push({ x: (room2.x + 3) * 32, y: (room2.y + 2) * 32, type: 'crate' });
+        furniture.push({ x: (room2.x + 2) * 32, y: (room2.y + 3) * 32, type: 'crate' });
+
+        // Corridor/Strategic: Add Cannon
+        furniture.push({ x: (corridorStart + 5) * 32, y: (corridorY + 1) * 32, type: 'cannon' });
 
         return { width, height, walls, doors, playerStart, enemySpawns, rooms, furniture };
     }
 
     private static generateDungeon(width: number, height: number): LevelData {
-        // Grid of 3x3 small rooms
+        // Grid of small rooms based on width/height
         const walls: { x: number; y: number }[] = [];
         const doors: { x: number; y: number; vertical: boolean }[] = [];
         const enemySpawns: { x: number; y: number }[] = [];
         const rooms: { x: number; y: number; w: number; h: number; floorType: number }[] = [];
         const furniture: { x: number; y: number; type: string }[] = [];
 
-        // Fill all with walls initially (or just add walls for rooms)
-        // Let's make 4 rooms in a square
-        const rW = 8;
-        const rH = 8;
+        // Parameters
+        const rW = 10;
+        const rH = 10;
         const gap = 4;
 
-        for (let row = 0; row < 2; row++) {
-            for (let col = 0; col < 2; col++) {
+        // Calculate rows and cols
+        const cols = Math.floor((width - 4) / (rW + gap));
+        const rows = Math.floor((height - 4) / (rH + gap));
+
+        for (let row = 0; row < rows; row++) {
+            for (let col = 0; col < cols; col++) {
                 const room = {
                     x: 4 + col * (rW + gap),
                     y: 4 + row * (rH + gap),
@@ -174,35 +188,57 @@ export class MapGenerator {
                     }
                 }
 
-                // Enemy in every room except first
+                // Enemy in every room except first (spawn)
                 if (row !== 0 || col !== 0) {
                     enemySpawns.push({ x: (room.x + 2) * 32, y: (room.y + 2) * 32 });
                     enemySpawns.push({ x: (room.x + room.w - 2) * 32, y: (room.y + room.h - 2) * 32 });
                 }
+
+                // Add Props (Crate/Table)
+                if (Math.random() > 0.5) {
+                    furniture.push({ x: (room.x + room.w / 2) * 32, y: (room.y + room.h / 2) * 32, type: 'crate' });
+                }
             }
         }
 
-        // Connect them
-        // Horizontal connection (Room 0 -> 1)
-        const yH = rooms[0].y + 4;
-        for (let x = rooms[0].x + rooms[0].w; x < rooms[1].x; x++) {
-            walls.push({ x, y: yH - 1 });
-            walls.push({ x, y: yH + 1 }); // Narrow corridor
-            // Floor logic handled by global tiles or specific render
-        }
-        // Remove walls for door
-        this.removeWall(walls, rooms[0].x + rooms[0].w, yH);
-        this.removeWall(walls, rooms[1].x, yH);
-        doors.push({ x: rooms[1].x, y: yH, vertical: true });
+        // Connect rooms horizontally
+        for (let row = 0; row < rows; row++) {
+            for (let col = 0; col < cols - 1; col++) {
+                const r1 = rooms[row * cols + col];
+                const r2 = rooms[row * cols + col + 1];
+                const yH = r1.y + Math.floor(r1.h / 2);
 
-        // Vertical connection (Room 0 -> 2)
-        const xV = rooms[0].x + 4;
-        for (let y = rooms[0].y + rooms[0].h; y < rooms[2].y; y++) {
-            walls.push({ x: xV - 1, y: y });
-            walls.push({ x: xV + 1, y: y });
+                // Tunnel
+                for (let x = r1.x + r1.w; x < r2.x; x++) {
+                    walls.push({ x, y: yH - 1 });
+                    walls.push({ x, y: yH + 1 });
+                }
+                this.removeWall(walls, r1.x + r1.w, yH);
+                this.removeWall(walls, r2.x, yH);
+
+                // Door?
+                if (Math.random() > 0.3) {
+                    doors.push({ x: r2.x, y: yH, vertical: true });
+                }
+            }
         }
-        this.removeWall(walls, xV, rooms[0].y + rooms[0].h);
-        this.removeWall(walls, xV, rooms[2].y);
+
+        // Connect rooms vertically
+        for (let col = 0; col < cols; col++) {
+            for (let row = 0; row < rows - 1; row++) {
+                const r1 = rooms[row * cols + col];
+                const r2 = rooms[(row + 1) * cols + col];
+                const xV = r1.x + Math.floor(r1.w / 2);
+
+                // Tunnel
+                for (let y = r1.y + r1.h; y < r2.y; y++) {
+                    walls.push({ x: xV - 1, y });
+                    walls.push({ x: xV + 1, y });
+                }
+                this.removeWall(walls, xV, r1.y + r1.h);
+                this.removeWall(walls, xV, r2.y);
+            }
+        }
 
         const playerStart = { x: (rooms[0].x + 2) * 32, y: (rooms[0].y + 2) * 32 };
 
@@ -232,13 +268,19 @@ export class MapGenerator {
             walls.push({ x: platform.x + platform.w, y });
         }
 
-        // Inner obstacles (planters/vents)
-        const obstacleX = 15;
-        const obstacleY = 10;
-        walls.push({ x: obstacleX, y: obstacleY });
-        walls.push({ x: obstacleX + 1, y: obstacleY });
-        walls.push({ x: obstacleX, y: obstacleY + 1 });
-        walls.push({ x: obstacleX + 1, y: obstacleY + 1 });
+        // Inner obstacles (planters/vents) - Move to corners to clear center
+        // Top Left
+        walls.push({ x: platform.x + 4, y: platform.y + 4 });
+        walls.push({ x: platform.x + 5, y: platform.y + 4 });
+        // Top Right
+        walls.push({ x: platform.x + platform.w - 4, y: platform.y + 4 });
+        walls.push({ x: platform.x + platform.w - 5, y: platform.y + 4 });
+        // Bottom Left
+        walls.push({ x: platform.x + 4, y: platform.y + platform.h - 4 });
+        walls.push({ x: platform.x + 5, y: platform.y + platform.h - 4 });
+        // Bottom Right
+        walls.push({ x: platform.x + platform.w - 4, y: platform.y + platform.h - 4 });
+        walls.push({ x: platform.x + platform.w - 5, y: platform.y + platform.h - 4 });
 
         // Spawns
         enemySpawns.push({ x: (platform.x + 2) * 32, y: (platform.y + 2) * 32 });
@@ -247,7 +289,9 @@ export class MapGenerator {
 
         const playerStart = { x: (platform.x + platform.w / 2) * 32, y: (platform.y + platform.h / 2) * 32 };
 
-        furniture.push({ x: (platform.x + 4) * 32, y: (platform.y + 10) * 32, type: 'table' });
+        furniture.push({ x: (platform.x + 4) * 32, y: (platform.y + 10) * 32, type: 'cannon' });
+        furniture.push({ x: (platform.x + platform.w - 4) * 32, y: (platform.y + 10) * 32, type: 'cannon' });
+        furniture.push({ x: (platform.x + 10) * 32, y: (platform.y + 4) * 32, type: 'crate' });
 
         return { width, height, walls, doors, playerStart, enemySpawns, rooms, furniture };
     }

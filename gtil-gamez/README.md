@@ -1,64 +1,64 @@
-# GTIL Phaser Shooter
+# La Batalla de San Lorenzo - GTIL Game
 
-**GTIL Phaser Shooter** is an intense, top-down survival shooter built with **Next.js** and **Phaser 3**. Choose your operative, select your battleground, and survive the neon chaos against waves of smart enemies and epic bosses.
+**La Batalla de San Lorenzo** es una experiencia interactiva histórica construida con **Next.js** y **Phaser 3**. Revive el combate que marcó el inicio de la gesta libertadora de San Martín. Dirige a tus granaderos, usa tácticas de la época y enfrenta al ejército realista en las barrancas del Paraná.
 
 ![Game Banner](public/assets/player1.png)
 
-## 🎮 Game Overview
+## 🎮 Resumen del Juego
 
-You are an elite operative dropped into hostile territory. Your mission is simple: **Eliminate the threat**. 
+Eres un Granadero a Caballo en la histórica **Batalla de San Lorenzo**. Tu misión: ** Rechazar el desembarco realista y proteger las costas del Paraná**.
 
-Survive waves of enemies, scavenge for ammo, utilize tactical cover, and reach **23 Kills** to summon the **Final Boss**. Failure means starting over, but victory immortalizes you in the **High Score Table**.
+Lucha a través de olas de infantería enemiga, utiliza el terreno a tu favor y sigue las órdenes del **General San Martín** en el **Modo Historia**. Sobrevive el tiempo suficiente y con suficientes bajas enemigas para enfrentarte al **Comandante Zabala** en un duelo final.
 
-### ✨ Key Features
-- **3 Playable Characters:** Choose your playstyle with **Commando** (Balanced), **Spectre** (Stealth/Speed), or **Titan** (Tank).
-- **Procedural & Hand-Crafted Maps:** Fight across 4 unique environments: **Standard**, **Dungeon**, **Terrace**, and **The Bridge**.
-- **Dynamic Combat:** Swap between **Pistol**, **Assault Rifle**, and **Shotgun** on the fly.
-- **Boss Battles:** Face off against the "Final Boss" with a dedicated health bar and massive minions.
-- **Smart AI:** Enemies use A* Pathfinding to hunt you down, hide, and flank.
-- **Persistence:** Local High Score system saves your best runs.
-- **Polished UI:** Full menu system with Settings, Volume Control, and premium visual effects.
+### ✨ Características Principales
+- **Modo Historia Histórico:** Revive el combate paso a paso con diálogos inmersivos basados en los hechos reales (3 de Febrero de 1813).
+- **3 Clases de Granaderos:** Elige entre **Comando** (Equilibrado), **Espectro** (Veloz) o **Titán** (Resistente), representando diferentes roles en el regimiento.
+- **Armamento de Época:** Utiliza pistolas de chispa, mosquetes y el icónico **Sable Corvo**.
+- **Jefe Final - Zabala:** Enfréntate al líder realista, el Comandante Zabala, con mecánicas únicas de invocación de tropas.
+- **Narrativa Dinámica:** Un sistema de "Diario de Guerra" muestra diálogos y órdenes en tiempo real durante la batalla.
+- **Ambientación Visual:** Ciclos de día/noche (Madrugada del combate), vegetación animada y tilesets coloniales.
+- **UI Premium:** Interfaz temática con estilos de pergamino, dorados y tipografía clásica.
 
-## 🕹️ Controls
+## 🕹️ Controles
 
-| Action | Control | Description |
+| Acción | Tecla | Descripción |
 | :--- | :--- | :--- |
-| **Move** | `W`, `A`, `S`, `D` | Navigate the arena |
-| **Aim** | Mouse Cursor | Look direction |
-| **Shoot** | Left Click | Fire current weapon |
-| **Switch Weapon** | `Q` | Cycle Pistol -> Rifle -> Shotgun |
-| **Reload** | `R` | Force weapon reload |
-| **Interact** | `E` | Open/Close Doors |
-| **Dash** | `Space` | Quick burst of speed (Cooldown applies) |
+| **Moverse** | `W`, `A`, `S`, `D` | Navegar por el campo de batalla |
+| **Apuntar** | Cursor Raton | Mirar / Apuntar |
+| **Disparar** | Click Izquierdo | Fuego a discreción |
+| **Cambiar Arma** | `Q` | Cambiar: Pistola -> Fusil -> Escopeta -> Sable |
+| **Recargar** | `R` | Recargar arma actual |
+| **Interactuar** | `E` | Abrir/Cerrar Puertas |
+| **Esquivar** | `Espacio` | Impulso rápido (Tiene enfriamiento) |
 
-## 👥 Characters
+## 👥 Granaderos
 
-| Class | Color | Description |
+| Clase | Color | Descripción |
 | :--- | :--- | :--- |
-| **Commando** | Orange | Balanced stats, standard loadout. The classic soldier. |
-| **Spectre** | Blue | High speed, sleek visual style. Best for kiting enemies. |
-| **Titan** | Red | Imposing presence. Built for holding the line. |
+| **Comando** | Naranja | Soldado equilibrado. La columna vertebral del ataque. |
+| **Espectro** | Azul | Explorador veloz. Ideal para flanquear al enemigo. |
+| **Titán** | Rojo | Fuerza de choque pesada. Resiste el fuego enemigo para romper filas. |
 
-## 🚀 Installation & Setup
+## 🚀 Instalación y Configuración
 
-1.  **Clone the repository:**
+1.  **Clonar el repositorio:**
     ```bash
     git clone https://github.com/Sawkker/GTIL.git
     cd GTIL/gtil-gamez
     ```
 
-2.  **Install dependencies:**
+2.  **Instalar dependencias:**
     ```bash
     npm install
     ```
 
-3.  **Run the development server:**
+3.  **Iniciar el servidor de desarrollo:**
     ```bash
     npm run dev
     ```
 
-4.  **Play:**
-    Open [http://localhost:3000](http://localhost:3000) in your browser.
+4.  **Jugar:**
+    Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
 
 ## 🛠️ Tech Stack
 

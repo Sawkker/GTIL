@@ -3,28 +3,39 @@ import { MainScene } from '../scenes/MainScene';
 
 export class Bullet extends Phaser.Physics.Arcade.Image {
     private speed: number = 800; // Faster for better range
-    private lifespan: number = 5000; // ms
+    public lifespan: number = 5000; // ms
     public isDead: boolean = false;
     public damage: number = 1;
     public ownerType: 'player' | 'enemy' = 'player';
     public trail?: Phaser.GameObjects.Particles.ParticleEmitter;
+    public isMelee: boolean = false;
 
     // ... (constructor) ...
 
-    fire(x: number, y: number, rotation: number, damage: number = 1, owner: 'player' | 'enemy' = 'player') {
+    fire(x: number, y: number, rotation: number, damage: number = 1, owner: 'player' | 'enemy' = 'player', speed: number = 800, lifespan: number = 5000) {
         this.isDead = false;
         this.ownerType = owner;
         this.setActive(true);
         this.setVisible(true);
+        this.speed = speed;
+        this.lifespan = lifespan;
+        this.isMelee = false; // Reset default
         // ...
 
-        // Manage Trail
-        if (!this.trail && (this.scene as MainScene).particleManager) {
-            this.trail = (this.scene as MainScene).particleManager.createBulletTrail(this);
-        }
-        if (this.trail) {
-            this.trail.setVisible(true);
-            this.trail.start();
+        this.speed = speed || 800; // Ensure speed is set
+
+        // Manage Trail - Only if NOT melee
+        if (!this.isMelee) {
+            if (!this.trail && (this.scene as MainScene).particleManager) {
+                this.trail = (this.scene as MainScene).particleManager.createBulletTrail(this);
+            }
+            if (this.trail) {
+                this.trail.setVisible(true);
+                this.trail.start();
+            }
+        } else if (this.trail) {
+            this.trail.setVisible(false);
+            this.trail.stop();
         }
 
         // ...
@@ -32,10 +43,11 @@ export class Bullet extends Phaser.Physics.Arcade.Image {
             this.body.reset(x, y);
 
             this.enableBody(true, x, y, true, true);
-            this.body.enable = true;
+            this.body.enable = true; // IMPORTANT
 
-            // Use CIRCLE for rotation independence
-            this.setCircle(2); // 4px diameter matches 4x4 texture
+            // Use CIRCLE for rotation independence by default, but Slash might want Box?
+            // Keep circle for simplicity of physics
+            this.setCircle(this.isMelee ? 16 : 2); // Melee hit area is larger
 
             // INSURANCE: If enableBody failed (sometimes happens in Pools), force it via World
             if (!this.body.enable) {
@@ -46,13 +58,17 @@ export class Bullet extends Phaser.Physics.Arcade.Image {
         }
 
         // Visual distinction
-        if (this.ownerType === 'enemy') {
+        if (this.isMelee) {
+            this.setTexture('slash_effect'); // We need to generate this or use invisible
+            this.setTint(0xffffff);
+            this.setAlpha(0.5);
+        } else if (this.ownerType === 'enemy') {
             this.setTint(0xffaa00); // Orange/Red for enemy
+            this.setAlpha(1);
         } else {
             this.setTint(0xffff00); // Yellow for player
+            this.setAlpha(1);
         }
-
-        this.lifespan = 5000; // Increased range
     }
 
     update(time: number, delta: number) {
